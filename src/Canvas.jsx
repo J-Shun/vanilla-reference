@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import useCanvas from './hooks/useCanvas';
 
 export const Canvas = () => {
-  const canvasRef = useRef(null);
+  const canvasRef = useCanvas();
 
   /**
    * 確保 canvas 佔滿整個畫面，寬高隨視窗大小變動
@@ -9,16 +10,16 @@ export const Canvas = () => {
   useEffect(() => {
     const resizeCanvas = () => {
       const canvas = canvasRef.current;
-      if (canvas) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-      }
+
+      if (!canvas) return;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     };
 
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
     return () => window.removeEventListener('resize', resizeCanvas);
-  }, []);
+  }, [canvasRef]);
 
   return <canvas ref={canvasRef} style={{ display: 'block' }} />;
 };
