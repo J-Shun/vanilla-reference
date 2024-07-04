@@ -10,10 +10,17 @@ export const Canvas = () => {
   useEffect(() => {
     const resizeCanvas = () => {
       const canvas = canvasRef.current;
-
       if (!canvas) return;
+
+      // 保存當前圖片數據
+      const ctx = canvas.getContext('2d');
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+
+      // 重新繪製圖片數據
+      ctx.putImageData(imgData, 0, 0);
     };
 
     resizeCanvas();
