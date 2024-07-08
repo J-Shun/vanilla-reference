@@ -19,8 +19,17 @@ export const Canvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
-      // 重新繪製圖片數據
-      ctx.putImageData(imgData, 0, 0);
+      // 重新繪製背景圖片
+      const img = new Image();
+      img.onload = () => {
+        // 平鋪顯示背景圖片，確保圖片不會被拉伸
+        const pattern = ctx.createPattern(img, 'repeat');
+        ctx.fillStyle = pattern;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 重新繪製保存的圖片數據
+        ctx.putImageData(imgData, 0, 0);
+      };
+      img.src = '/src/assets/grid.svg';
     };
 
     resizeCanvas();
@@ -81,6 +90,21 @@ export const Canvas = () => {
 
     // 清理函數以解除事件監聽器
     return () => removeEventListeners();
+  }, [canvasRef]);
+
+  // 加載背景圖片
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    img.onload = () => {
+      // 平鋪顯示背景圖片，確保圖片不會被拉伸
+      const pattern = ctx.createPattern(img, 'repeat');
+      ctx.fillStyle = pattern;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    };
+    img.src = '/src/assets/grid.svg';
   }, [canvasRef]);
 
   return <canvas ref={canvasRef} style={{ display: 'block' }} />;
