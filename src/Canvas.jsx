@@ -4,6 +4,7 @@ import { resizeCanvas, loadGrid, redrawImages } from './canvas/helper';
 
 export const Canvas = () => {
   const canvasRef = useCanvas();
+  const offscreenCanvasRef = useRef(document.createElement('canvas'));
   const resizeTimeoutRef = useRef(null);
   const imagesRef = useRef([]);
 
@@ -16,11 +17,15 @@ export const Canvas = () => {
 
     resizeTimeoutRef.current = setTimeout(async () => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      const offscreenCanvas = offscreenCanvasRef.current;
+      if (!canvas || offscreenCanvas) return;
 
       resizeCanvas({ canvas });
-      await loadGrid({ canvas });
-      redrawImages({ canvas, images: imagesRef.current });
+      resizeCanvas({ canvas: offscreenCanvas });
+      await loadGrid({ canvas: offscreenCanvas });
+      // TODO: 是否需要 promise?
+      redrawImages({ offscreenCanvas, images: imagesRef.current });
+      canvas.getContext('2d').drawImage(offscreenCanvas, 0, 0);
     }, 100);
   }, [canvasRef]);
 
@@ -29,12 +34,15 @@ export const Canvas = () => {
    */
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const offscreenCanvas = offscreenCanvasRef.current;
+    if (!canvas || !offscreenCanvas) return;
 
     const renderCanvas = async () => {
       resizeCanvas({ canvas });
-      await loadGrid({ canvas });
-      redrawImages({ canvas, images: imagesRef.current });
+      resizeCanvas({ canvas: offscreenCanvas });
+      await loadGrid({ canvas: offscreenCanvas });
+      redrawImages({ offscreenCanvas, images: imagesRef.current });
+      canvas.getContext('2d').drawImage(offscreenCanvas, 0, 0);
     };
 
     renderCanvas();
@@ -86,6 +94,13 @@ export const Canvas = () => {
             width: img.width,
             height: img.height,
           });
+
+          // 重繪到 offscreenCanvas
+          const offscreenCanvas = offscreenCanvasRef.current;
+          redrawImages({ offscreenCanvas, images: imagesRef.current });
+
+          // 從 offscreenCanvas 重繪到 canvas
+          ctx.drawImage(offscreenCanvas, 0, 0);
         };
         img.src = event.target.result;
       };
