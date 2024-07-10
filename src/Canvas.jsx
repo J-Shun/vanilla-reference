@@ -1,9 +1,8 @@
 /* eslint-disable no-unused-vars */
 import { useEffect } from 'react';
 import useCanvas from './hooks/useCanvas';
-import { drawVirtualCanvas } from './helper/canvasHelper';
-
-const virtualCanvasSize = { width: 5000, height: 5000 };
+import { drawVirtualCanvas, updateVisibleCanvas } from './helper/canvasHelper';
+import { virtualCanvasSize } from './constant/size';
 
 export const Canvas = () => {
   // 主畫布、虛擬畫布的主體和 2D context
@@ -23,42 +22,21 @@ export const Canvas = () => {
     // 初始化主畫布和環境
     const canvas = canvasRef.current;
     contextRef.current = canvas.getContext('2d');
+    const canvasContext = contextRef.current;
 
     // 處理主畫布的尺寸變動（RWD）
     const resizeCanvas = () => {
       if (!canvas) return;
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      updateVisibleCanvas();
-    };
-
-    // 處理滾動
-    const updateVisibleCanvas = () => {
-      const context = contextRef.current;
-      const xOffset = window.pageXOffset || document.documentElement.scrollLeft;
-      const yOffset = window.pageYOffset || document.documentElement.scrollTop;
-
-      context.clearRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(
-        virtualCanvas,
-        xOffset,
-        yOffset,
-        canvas.width,
-        canvas.height,
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
+      updateVisibleCanvas({ canvas, canvasContext, virtualCanvas });
     };
 
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('scroll', updateVisibleCanvas);
 
     return () => {
       window.removeEventListener('resize', resizeCanvas);
-      window.removeEventListener('scroll', updateVisibleCanvas);
     };
   }, [canvasRef, contextRef, virtualCanvasRef, virtualContextRef]);
 
