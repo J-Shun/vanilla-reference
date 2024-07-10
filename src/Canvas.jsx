@@ -1,7 +1,11 @@
 /* eslint-disable no-unused-vars */
 import { useEffect } from 'react';
 import useCanvas from './hooks/useCanvas';
-import { drawVirtualCanvas, updateVisibleCanvas } from './helper/canvasHelper';
+import {
+  drawVirtualCanvas,
+  updateVisibleCanvas,
+  convertToGrayScale,
+} from './helper/canvasHelper';
 import { virtualCanvasSize } from './constant/size';
 
 export const Canvas = () => {
@@ -120,5 +124,19 @@ export const Canvas = () => {
     return () => removeEventListeners();
   }, [canvasRef, contextRef, virtualCanvasRef, virtualContextRef]);
 
-  return <canvas ref={canvasRef} style={{ display: 'block' }} />;
+  // 先簡單處理，點擊後直接將圖片轉灰階
+  const handleClick = () => {
+    convertToGrayScale({
+      canvas: canvasRef.current,
+      canvasContext: contextRef.current,
+    });
+  };
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{ display: 'block' }}
+      onClick={handleClick}
+    />
+  );
 };
