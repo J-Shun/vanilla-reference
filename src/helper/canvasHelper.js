@@ -12,8 +12,8 @@ const drawVirtualCanvas = (context) => {
 
 // 處理主畫布中的可視區域
 const updateVisibleCanvas = ({ canvas, canvasContext, virtualCanvas }) => {
-  const xOffset = window.pageXOffset || document.documentElement.scrollLeft;
-  const yOffset = window.pageYOffset || document.documentElement.scrollTop;
+  const xOffset = window.scrollX || document.documentElement.scrollLeft;
+  const yOffset = window.scrollX || document.documentElement.scrollTop;
 
   canvasContext.clearRect(0, 0, canvas.width, canvas.height);
   canvasContext.drawImage(
