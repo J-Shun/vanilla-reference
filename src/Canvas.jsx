@@ -13,18 +13,23 @@ export const Canvas = () => {
    * 透過 useCallback 確保不會每次渲染都重新創建
    */
   const debounceRerender = useCallback(() => {
+    // 若計時器拿到新的值，則清除舊的時間
     if (resizeTimeoutRef.current) clearTimeout(resizeTimeoutRef.current);
 
     resizeTimeoutRef.current = setTimeout(async () => {
       const canvas = canvasRef.current;
       const offscreenCanvas = offscreenCanvasRef.current;
-      if (!canvas || offscreenCanvas) return;
+      console.log('canvas', canvas);
+      console.log('offscreenCanvas', offscreenCanvas);
+      if (!canvas || !offscreenCanvas) return;
 
+      // 調整 canvas 大小
       resizeCanvas({ canvas });
+
+      // 在 offscreenCanvas 上調整大小、載入背景、重繪圖片上 canvas
       resizeCanvas({ canvas: offscreenCanvas });
       await loadGrid({ canvas: offscreenCanvas });
-      // TODO: 是否需要 promise?
-      redrawImages({ offscreenCanvas, images: imagesRef.current });
+      redrawImages({ canvas: offscreenCanvas, images: imagesRef.current });
       canvas.getContext('2d').drawImage(offscreenCanvas, 0, 0);
     }, 100);
   }, [canvasRef]);
@@ -41,7 +46,7 @@ export const Canvas = () => {
       resizeCanvas({ canvas });
       resizeCanvas({ canvas: offscreenCanvas });
       await loadGrid({ canvas: offscreenCanvas });
-      redrawImages({ offscreenCanvas, images: imagesRef.current });
+      redrawImages({ canvas: offscreenCanvas, images: imagesRef.current });
       canvas.getContext('2d').drawImage(offscreenCanvas, 0, 0);
     };
 
@@ -97,7 +102,7 @@ export const Canvas = () => {
 
           // 重繪到 offscreenCanvas
           const offscreenCanvas = offscreenCanvasRef.current;
-          redrawImages({ offscreenCanvas, images: imagesRef.current });
+          redrawImages({ canvas: offscreenCanvas, images: imagesRef.current });
 
           // 從 offscreenCanvas 重繪到 canvas
           ctx.drawImage(offscreenCanvas, 0, 0);
@@ -127,5 +132,9 @@ export const Canvas = () => {
     return () => removeEventListeners();
   }, [canvasRef]);
 
-  return <canvas ref={canvasRef} style={{ display: 'block' }} />;
+  return (
+    <div style={{ overflow: 'hidden' }}>
+      <canvas ref={canvasRef} style={{ display: 'block' }} />
+    </div>
+  );
 };

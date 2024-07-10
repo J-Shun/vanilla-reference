@@ -22,8 +22,8 @@ const loadGrid = ({ canvas }) => {
 };
 
 /* 重繪背景以外匯入的圖片 */
-const redrawImages = ({ offscreenCanvas, images }) => {
-  const ctx = offscreenCanvas.getContext('2d');
+const redrawImages = ({ canvas, images }) => {
+  const ctx = canvas.getContext('2d');
   images.forEach((image) => {
     const img = new Image();
     img.src = image.src;
