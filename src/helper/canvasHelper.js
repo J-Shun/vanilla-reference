@@ -1,12 +1,34 @@
 import { virtualCanvasSize } from '../constant/size';
 
-// 處理虛擬畫布的背景繪製
-const drawVirtualCanvas = (context) => {
-  context.fillStyle = '#ddd';
-  for (let x = 0; x < virtualCanvasSize.width; x += 50) {
-    for (let y = 0; y < virtualCanvasSize.height; y += 50) {
-      context.fillRect(x, y, 25, 25);
-    }
+// 處理虛擬畫布的背景繪製（方塊）
+// const drawVirtualCanvas = ({ context }) => {
+//   context.fillStyle = '#ddd';
+//   for (let x = 0; x < virtualCanvasSize.width; x += 50) {
+//     for (let y = 0; y < virtualCanvasSize.height; y += 50) {
+//       context.fillRect(x, y, 25, 25);
+//     }
+//   }
+// };
+
+// 處理虛擬畫布的背景繪製（方格）
+const drawVirtualCanvas = ({ context }) => {
+  context.strokeStyle = '#ddd';
+  context.lineWidth = 1;
+
+  // 繪製垂直線（相隔單位 50）
+  for (let x = 0; x <= virtualCanvasSize.width; x += 50) {
+    context.beginPath();
+    context.moveTo(x, 0);
+    context.lineTo(x, virtualCanvasSize.height);
+    context.stroke();
+  }
+
+  // 繪製水平線（相隔單位 50）
+  for (let y = 0; y <= virtualCanvasSize.height; y += 50) {
+    context.beginPath();
+    context.moveTo(0, y);
+    context.lineTo(virtualCanvasSize.width, y);
+    context.stroke();
   }
 };
 

@@ -21,7 +21,7 @@ export const Canvas = () => {
 
     // 在虛擬畫布上繪製圖形（方格背景）
     virtualContextRef.current = virtualCanvas.getContext('2d');
-    drawVirtualCanvas(virtualContextRef.current);
+    drawVirtualCanvas({ context: virtualContextRef.current });
 
     // 初始化主畫布和環境
     const canvas = canvasRef.current;
