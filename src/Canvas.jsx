@@ -5,6 +5,7 @@ import {
   drawVirtualCanvas,
   updateVisibleCanvas,
   convertToGrayScale,
+  applySepiaEffect,
 } from './helper/canvasHelper';
 import { virtualCanvasSize } from './constant/size';
 
@@ -129,6 +130,7 @@ export const Canvas = () => {
     convertToGrayScale({
       canvas: canvasRef.current,
       canvasContext: contextRef.current,
+      virtualContext: virtualContextRef.current,
     });
   };
 
