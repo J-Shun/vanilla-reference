@@ -11,7 +11,7 @@ import { virtualCanvasSize } from '../constant/size';
 // };
 
 // 處理虛擬畫布的背景繪製（方格）
-const drawVirtualCanvas = ({ context }) => {
+const createVirtualCanvasBg = ({ context }) => {
   context.strokeStyle = '#ddd';
   context.lineWidth = 1;
 
@@ -116,7 +116,7 @@ function applySepiaEffect({ canvas, canvasContext, virtualContext }) {
 }
 
 export {
-  drawVirtualCanvas,
+  createVirtualCanvasBg,
   updateVisibleCanvas,
   convertToGrayScale,
   applySepiaEffect,
