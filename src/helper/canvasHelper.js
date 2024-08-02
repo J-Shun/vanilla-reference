@@ -1,48 +1,3 @@
-import { virtualCanvasSize } from '../constant/size';
-
-// 處理虛擬畫布的背景繪製（方格）
-const createVirtualCanvasBg = ({ virtualContext }) => {
-  virtualContext.strokeStyle = '#ddd';
-  virtualContext.lineWidth = 1;
-
-  // 繪製垂直線（相隔單位 50）
-  for (let x = 0; x <= virtualCanvasSize.width; x += 50) {
-    virtualContext.beginPath();
-    virtualContext.moveTo(x, 0);
-    virtualContext.lineTo(x, virtualCanvasSize.height);
-    virtualContext.stroke();
-  }
-
-  // 繪製水平線（相隔單位 50）
-  for (let y = 0; y <= virtualCanvasSize.height; y += 50) {
-    virtualContext.beginPath();
-    virtualContext.moveTo(0, y);
-    virtualContext.lineTo(virtualCanvasSize.width, y);
-    virtualContext.stroke();
-  }
-};
-
-// 處理主畫布中的可視區域
-const updateVisibleCanvas = ({ canvasContext, virtualContext }) => {
-  const canvas = canvasContext.canvas;
-  const virtualCanvas = virtualContext.canvas;
-  const xOffset = window.scrollX || document.documentElement.scrollLeft;
-  const yOffset = window.scrollX || document.documentElement.scrollTop;
-
-  canvasContext.clearRect(0, 0, canvas.width, canvas.height);
-  canvasContext.drawImage(
-    virtualCanvas,
-    xOffset,
-    yOffset,
-    canvas.width,
-    canvas.height,
-    0,
-    0,
-    canvas.width,
-    canvas.height
-  );
-};
-
 // 從主畫布中，將圖像轉換為灰階
 // 有個小問題：只有在畫面上的部分轉為灰階，其他部分沒有轉換
 function convertToGrayScale({ canvasContext, virtualContext }) {
@@ -109,9 +64,4 @@ function applySepiaEffect({ canvasContext, virtualContext }) {
   virtualContext.putImageData(imageData, 0, 0);
 }
 
-export {
-  createVirtualCanvasBg,
-  updateVisibleCanvas,
-  convertToGrayScale,
-  applySepiaEffect,
-};
+export { convertToGrayScale, applySepiaEffect };

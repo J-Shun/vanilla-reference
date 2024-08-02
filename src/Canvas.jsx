@@ -1,10 +1,6 @@
 /* eslint-disable no-unused-vars */
 import { useEffect, useRef } from 'react';
 import useCanvas from './hooks/useCanvas';
-import {
-  createVirtualCanvasBg,
-  updateVisibleCanvas,
-} from './helper/canvasHelper';
 import { virtualCanvasSize } from './constant/size';
 import { preventDefaults } from './helper/commonHelper';
 
@@ -12,8 +8,14 @@ const dragDropEvents = ['dragenter', 'dragover', 'dragleave', 'drop'];
 
 export const Canvas = () => {
   // 主畫布、虛擬畫布的主體和 2D context
-  const { canvasRef, contextRef, virtualCanvasRef, virtualContextRef } =
-    useCanvas();
+  const {
+    canvasRef,
+    contextRef,
+    virtualCanvasRef,
+    virtualContextRef,
+    updateVisibleCanvas,
+    createVirtualCanvasBg,
+  } = useCanvas();
 
   // 存放圖片資訊的 ref array，方便針對圖片進行操作
   const imagesRef = useRef([]);
@@ -26,7 +28,7 @@ export const Canvas = () => {
 
     // 在虛擬畫布上繪製圖形（方格背景）
     virtualContextRef.current = virtualCanvas.getContext('2d');
-    createVirtualCanvasBg({ virtualContext: virtualContextRef.current });
+    createVirtualCanvasBg();
 
     // 初始化主畫布和環境
     const canvas = canvasRef.current;
@@ -37,10 +39,7 @@ export const Canvas = () => {
       if (!canvas) return;
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-      updateVisibleCanvas({
-        canvasContext: contextRef.current,
-        virtualContext: virtualContextRef.current,
-      });
+      updateVisibleCanvas();
     };
 
     resizeCanvas();
@@ -49,7 +48,14 @@ export const Canvas = () => {
     return () => {
       window.removeEventListener('resize', resizeCanvas);
     };
-  }, [canvasRef, contextRef, virtualCanvasRef, virtualContextRef]);
+  }, [
+    canvasRef,
+    contextRef,
+    createVirtualCanvasBg,
+    updateVisibleCanvas,
+    virtualCanvasRef,
+    virtualContextRef,
+  ]);
 
   /**
    * 圖片丟入 canvas
