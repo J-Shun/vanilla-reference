@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+/* eslint-disable no-unused-vars */
+import { useState, useEffect, useRef } from 'react';
 import { virtualCanvasSize } from '../constant/size';
 import { preventDefaults } from '../helper/commonHelper';
 
@@ -19,6 +20,9 @@ const useCanvas = () => {
 
   // 存放圖片資訊的 ref array，方便針對圖片進行操作
   const imagesRef = useRef([]);
+
+  // 存放主畫布在虛擬畫布上的偏移量
+  const offsetRef = useRef({ x: 0, y: 0 });
 
   // 處理虛擬畫布的背景繪製（方格）
   const createVirtualCanvasBg = () => {
@@ -48,14 +52,12 @@ const useCanvas = () => {
     const canvas = canvasRef.current;
     const canvasContext = contextRef.current;
     const virtualCanvas = virtualCanvasRef.current;
-    const xOffset = window.scrollX || document.documentElement.scrollLeft;
-    const yOffset = window.scrollX || document.documentElement.scrollTop;
 
     canvasContext.clearRect(0, 0, canvas.width, canvas.height);
     canvasContext.drawImage(
       virtualCanvas,
-      xOffset,
-      yOffset,
+      offsetRef.current.x,
+      offsetRef.current.y,
       canvas.width,
       canvas.height,
       0,
@@ -78,6 +80,11 @@ const useCanvas = () => {
     // 初始化主畫布和環境
     const canvas = canvasRef.current;
     contextRef.current = canvas.getContext('2d');
+
+    // 初始化時將顯示畫面設置為虛擬畫布的中間位置
+    const xOffset = (virtualCanvasSize.width - canvas.width) / 2;
+    const yOffset = (virtualCanvasSize.height - canvas.height) / 2;
+    offsetRef.current = { x: xOffset, y: yOffset };
 
     // 處理主畫布的尺寸變動（RWD）
     const resizeCanvas = () => {
@@ -113,9 +120,11 @@ const useCanvas = () => {
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          // 計算圖片置中要放的位置
-          const widthCenter = canvas.width / 2 - img.width / 2;
-          const heightCenter = canvas.height / 2 - img.height / 2;
+          // 圖片的位置在於主畫布中心，並加上偏移量
+          const widthCenter =
+            (canvas.width - img.width) / 2 + offsetRef.current.x;
+          const heightCenter =
+            (canvas.height - img.height) / 2 + offsetRef.current.y;
 
           // 將圖片資訊存入 ref
           imagesRef.current.push({
@@ -136,18 +145,8 @@ const useCanvas = () => {
             img.height
           );
 
-          // 將虛擬畫布上的圖片繪製到主畫布上
-          canvasContext.drawImage(
-            virtualCanvas,
-            0,
-            0,
-            canvas.width,
-            canvas.height,
-            0,
-            0,
-            canvas.width,
-            canvas.height
-          );
+          // 更新主畫布的可視區域
+          updateVisibleCanvas();
         };
         img.src = e.target.result;
       };
