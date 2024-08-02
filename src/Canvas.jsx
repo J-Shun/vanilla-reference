@@ -4,8 +4,6 @@ import useCanvas from './hooks/useCanvas';
 import {
   createVirtualCanvasBg,
   updateVisibleCanvas,
-  convertToGrayScale,
-  applySepiaEffect,
 } from './helper/canvasHelper';
 import { virtualCanvasSize } from './constant/size';
 import { preventDefaults } from './helper/commonHelper';
@@ -28,7 +26,7 @@ export const Canvas = () => {
 
     // 在虛擬畫布上繪製圖形（方格背景）
     virtualContextRef.current = virtualCanvas.getContext('2d');
-    createVirtualCanvasBg({ context: virtualContextRef.current });
+    createVirtualCanvasBg({ virtualContext: virtualContextRef.current });
 
     // 初始化主畫布和環境
     const canvas = canvasRef.current;
@@ -40,9 +38,8 @@ export const Canvas = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       updateVisibleCanvas({
-        canvas,
         canvasContext: contextRef.current,
-        virtualCanvas,
+        virtualContext: virtualContextRef.current,
       });
     };
 
@@ -128,20 +125,5 @@ export const Canvas = () => {
     };
   }, [canvasRef, contextRef, virtualCanvasRef, virtualContextRef]);
 
-  // 先簡單處理，點擊後直接將圖片轉灰階
-  const handleClick = () => {
-    // convertToGrayScale({
-    //   canvas: canvasRef.current,
-    //   canvasContext: contextRef.current,
-    //   virtualContext: virtualContextRef.current,
-    // });
-  };
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{ display: 'block' }}
-      onClick={handleClick}
-    />
-  );
+  return <canvas ref={canvasRef} style={{ display: 'block' }} />;
 };
