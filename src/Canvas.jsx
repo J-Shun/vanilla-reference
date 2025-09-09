@@ -326,33 +326,37 @@ export const Canvas = () => {
       (window.scrollY || document.documentElement.scrollTop);
 
     if (isResizingRef.current && selectedImageRef.current) {
-      // 縮放模式
+      // 縮放模式 - 讓右下角控制點跟隨滑鼠移動
       const selectedImage = imagesRef.current.find(
         (img) => img.id === selectedImageRef.current
       );
       if (selectedImage) {
-        // 計算滑鼠相對於初始位置的移動距離
-        const deltaX = x - initialMouseRef.current.x;
-        const deltaY = y - initialMouseRef.current.y;
+        // 計算圖片左上角位置（固定不變）
+        const topLeftX = selectedImage.x;
+        const topLeftY = selectedImage.y;
 
-        // 使用對角線距離來計算縮放 - 更直觀的縮放方式
-        const diagonal = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        // 滑鼠現在的位置就是新的右下角位置
+        const newBottomRightX = x;
+        const newBottomRightY = y;
 
-        // 判斷縮放方向：如果滑鼠往右下角移動（deltaX > 0 && deltaY > 0）則放大，否則縮小
-        const direction = deltaX + deltaY >= 0 ? 1 : -1;
+        // 計算新的寬度和高度
+        const newWidth = Math.max(20, newBottomRightX - topLeftX); // 最小寬度20px
+        const newHeight = Math.max(20, newBottomRightY - topLeftY); // 最小高度20px
 
-        // 縮放係數 - 可以調整這個值來改變縮放的敏感度
-        const sensitivity = 0.005; // 值越大，縮放越敏感
-        const scaleChange = direction * diagonal * sensitivity;
-
-        // 計算新的縮放比例
-        const newScale = Math.max(0.1, Math.min(5, 1 + scaleChange));
-
-        // 應用縮放，保持圖片的長寬比例
+        // 保持圖片的長寬比例
         const aspectRatio =
           initialSizeRef.current.width / initialSizeRef.current.height;
-        selectedImage.width = initialSizeRef.current.width * newScale;
-        selectedImage.height = selectedImage.width / aspectRatio;
+
+        // 根據寬度或高度的變化比例來決定最終尺寸
+        const widthScale = newWidth / initialSizeRef.current.width;
+        const heightScale = newHeight / initialSizeRef.current.height;
+
+        // 選擇較小的縮放比例以保持長寬比
+        const scale = Math.min(widthScale, heightScale);
+
+        // 應用縮放比例
+        selectedImage.width = initialSizeRef.current.width * scale;
+        selectedImage.height = initialSizeRef.current.height * scale;
 
         // 重新繪製畫布
         redrawCanvas();
