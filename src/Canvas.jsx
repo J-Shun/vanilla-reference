@@ -242,32 +242,10 @@ export const Canvas = () => {
     };
   }, [canvasRef, contextRef, virtualCanvasRef, virtualContextRef]);
 
-  // 處理點擊事件
+  // 處理點擊事件（現在主要用於處理一些其他邏輯，選取已在 mouseDown 中處理）
   const handleClick = (e) => {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-
-    // 計算點擊位置相對於虛擬畫布的座標
-    const x =
-      e.clientX -
-      rect.left +
-      (window.scrollX || document.documentElement.scrollLeft);
-    const y =
-      e.clientY -
-      rect.top +
-      (window.scrollY || document.documentElement.scrollTop);
-
-    // 檢查是否點擊到圖片
-    const clickedImage = getClickedImage(x, y);
-
-    if (clickedImage) {
-      selectedImageRef.current = clickedImage.id;
-    } else {
-      selectedImageRef.current = null;
-    }
-
-    // 重新繪製畫布
-    redrawCanvas();
+    // 點擊事件的主要邏輯已移到 handleMouseDown 中處理
+    // 這裡保留以備未來需要其他點擊邏輯
   };
 
   // 處理鼠標按下事件
@@ -285,11 +263,14 @@ export const Canvas = () => {
       rect.top +
       (window.scrollY || document.documentElement.scrollTop);
 
-    // 檢查是否點擊到選中的圖片
+    // 檢查是否點擊到任何圖片
     const clickedImage = getClickedImage(x, y);
 
-    if (clickedImage && selectedImageRef.current === clickedImage.id) {
-      // 檢查是否點擊到縮放控制點
+    if (clickedImage) {
+      // 自動選中點擊的圖片
+      selectedImageRef.current = clickedImage.id;
+
+      // 檢查是否點擊到縮放控制點（只有已選中的圖片才顯示控制點）
       if (getResizeHandle(x, y, clickedImage)) {
         isResizingRef.current = true;
         initialSizeRef.current = {
@@ -299,7 +280,7 @@ export const Canvas = () => {
         initialMouseRef.current = { x, y };
         canvas.style.cursor = 'nw-resize';
       } else {
-        // 普通拖拽
+        // 直接開始拖拽
         isDraggingRef.current = true;
         dragOffsetRef.current = {
           x: x - clickedImage.x,
@@ -307,6 +288,13 @@ export const Canvas = () => {
         };
         canvas.style.cursor = 'grabbing';
       }
+
+      // 重新繪製畫布以顯示選取框
+      redrawCanvas();
+    } else {
+      // 點擊空白處，取消選取
+      selectedImageRef.current = null;
+      redrawCanvas();
     }
   };
 
@@ -377,11 +365,15 @@ export const Canvas = () => {
       // 檢查鼠標是否在圖片上，改變游標樣式
       const hoveredImage = getClickedImage(x, y);
 
-      if (hoveredImage && selectedImageRef.current === hoveredImage.id) {
-        // 檢查是否在縮放控制點上
-        if (getResizeHandle(x, y, hoveredImage)) {
+      if (hoveredImage) {
+        // 如果圖片已被選中，檢查是否在縮放控制點上
+        if (
+          selectedImageRef.current === hoveredImage.id &&
+          getResizeHandle(x, y, hoveredImage)
+        ) {
           canvas.style.cursor = 'nw-resize';
         } else {
+          // 任何圖片都可以拖拽
           canvas.style.cursor = 'grab';
         }
       } else {
