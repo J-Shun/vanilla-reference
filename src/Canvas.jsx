@@ -85,7 +85,7 @@ export const Canvas = () => {
   const getResizeHandle = (x, y, image) => {
     if (!image) return false;
 
-    const handleSize = 10; // 縮放控制點的大小
+    const handleSize = 20; // 縮放控制點的大小（增加到20像素）
     const handleX = image.x + image.width - handleSize / 2;
     const handleY = image.y + image.height - handleSize / 2;
 
@@ -139,9 +139,9 @@ export const Canvas = () => {
             );
 
             // 繪製縮放控制點（右下角的小方塊）
-            const handleSize = 10;
-            const handleX = imgData.x + imgData.width - handleSize / 2;
-            const handleY = imgData.y + imgData.height - handleSize / 2;
+            const handleSize = 10; // 增加控制點視覺大小
+            const handleX = imgData.x + imgData.width - handleSize;
+            const handleY = imgData.y + imgData.height - handleSize;
 
             virtualContext.setLineDash([]); // 重置虛線
             virtualContext.fillStyle = '#ff0000';
