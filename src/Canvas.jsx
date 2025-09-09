@@ -4,8 +4,6 @@ import useCanvas from './hooks/useCanvas';
 import {
   createVirtualCanvasBg,
   updateVisibleCanvas,
-  convertToGrayScale,
-  applySepiaEffect,
 } from './helper/canvasHelper';
 import { virtualCanvasSize } from './constant/size';
 import { preventDefaults } from './helper/commonHelper';
@@ -19,6 +17,18 @@ export const Canvas = () => {
 
   // 存放圖片資訊的 ref array，方便針對圖片進行操作
   const imagesRef = useRef([]);
+
+  // 選中的圖片 ID
+  const selectedImageRef = useRef(null);
+
+  // 拖拽狀態
+  const isDraggingRef = useRef(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+
+  // 縮放狀態
+  const isResizingRef = useRef(false);
+  const initialSizeRef = useRef({ width: 0, height: 0 });
+  const initialMouseRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     // 處理虛擬畫布的初始尺寸
@@ -53,6 +63,110 @@ export const Canvas = () => {
       window.removeEventListener('resize', resizeCanvas);
     };
   }, [canvasRef, contextRef, virtualCanvasRef, virtualContextRef]);
+
+  // 檢測點擊是否在圖片範圍內
+  const getClickedImage = (x, y) => {
+    // 從後面開始檢查，因為後加入的圖片在上層
+    for (let i = imagesRef.current.length - 1; i >= 0; i--) {
+      const img = imagesRef.current[i];
+      if (
+        x >= img.x &&
+        x <= img.x + img.width &&
+        y >= img.y &&
+        y <= img.y + img.height
+      ) {
+        return img;
+      }
+    }
+    return null;
+  };
+
+  // 檢測是否點擊到縮放控制點（圖片右下角的小方塊）
+  const getResizeHandle = (x, y, image) => {
+    if (!image) return false;
+
+    const handleSize = 10; // 縮放控制點的大小
+    const handleX = image.x + image.width - handleSize / 2;
+    const handleY = image.y + image.height - handleSize / 2;
+
+    return (
+      x >= handleX &&
+      x <= handleX + handleSize &&
+      y >= handleY &&
+      y <= handleY + handleSize
+    );
+  };
+
+  // 重新繪製所有圖片和選擇框
+  const redrawCanvas = () => {
+    const canvas = canvasRef.current;
+    const canvasContext = contextRef.current;
+    const virtualCanvas = virtualCanvasRef.current;
+    const virtualContext = virtualContextRef.current;
+
+    if (!canvas || !canvasContext || !virtualCanvas || !virtualContext) return;
+
+    // 清空虛擬畫布並重繪背景
+    virtualContext.clearRect(0, 0, virtualCanvas.width, virtualCanvas.height);
+    createVirtualCanvasBg({ context: virtualContext });
+
+    // 使用 Promise 來處理圖片載入
+    const imagePromises = imagesRef.current.map((imgData) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          virtualContext.drawImage(
+            img,
+            imgData.x,
+            imgData.y,
+            imgData.width,
+            imgData.height
+          );
+
+          // 如果是選中的圖片，繪製虛線框和縮放控制點
+          if (selectedImageRef.current === imgData.id) {
+            virtualContext.save();
+
+            // 繪製虛線框
+            virtualContext.strokeStyle = '#ff0000';
+            virtualContext.lineWidth = 2;
+            virtualContext.setLineDash([5, 5]);
+            virtualContext.strokeRect(
+              imgData.x,
+              imgData.y,
+              imgData.width,
+              imgData.height
+            );
+
+            // 繪製縮放控制點（右下角的小方塊）
+            const handleSize = 10;
+            const handleX = imgData.x + imgData.width - handleSize / 2;
+            const handleY = imgData.y + imgData.height - handleSize / 2;
+
+            virtualContext.setLineDash([]); // 重置虛線
+            virtualContext.fillStyle = '#ff0000';
+            virtualContext.fillRect(handleX, handleY, handleSize, handleSize);
+            virtualContext.strokeStyle = '#ffffff';
+            virtualContext.lineWidth = 1;
+            virtualContext.strokeRect(handleX, handleY, handleSize, handleSize);
+
+            virtualContext.restore();
+          }
+          resolve();
+        };
+        img.src = imgData.src;
+      });
+    });
+
+    // 等所有圖片載入完成後更新主畫布
+    Promise.all(imagePromises).then(() => {
+      updateVisibleCanvas({
+        canvas,
+        canvasContext,
+        virtualCanvas,
+      });
+    });
+  };
 
   /**
    * 圖片丟入 canvas
@@ -128,20 +242,165 @@ export const Canvas = () => {
     };
   }, [canvasRef, contextRef, virtualCanvasRef, virtualContextRef]);
 
-  // 先簡單處理，點擊後直接將圖片轉灰階
-  const handleClick = () => {
-    // convertToGrayScale({
-    //   canvas: canvasRef.current,
-    //   canvasContext: contextRef.current,
-    //   virtualContext: virtualContextRef.current,
-    // });
+  // 處理點擊事件
+  const handleClick = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+
+    // 計算點擊位置相對於虛擬畫布的座標
+    const x =
+      e.clientX -
+      rect.left +
+      (window.scrollX || document.documentElement.scrollLeft);
+    const y =
+      e.clientY -
+      rect.top +
+      (window.scrollY || document.documentElement.scrollTop);
+
+    // 檢查是否點擊到圖片
+    const clickedImage = getClickedImage(x, y);
+
+    if (clickedImage) {
+      selectedImageRef.current = clickedImage.id;
+    } else {
+      selectedImageRef.current = null;
+    }
+
+    // 重新繪製畫布
+    redrawCanvas();
   };
 
+  // 處理鼠標按下事件
+  const handleMouseDown = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+
+    // 計算點擊位置相對於虛擬畫布的座標
+    const x =
+      e.clientX -
+      rect.left +
+      (window.scrollX || document.documentElement.scrollLeft);
+    const y =
+      e.clientY -
+      rect.top +
+      (window.scrollY || document.documentElement.scrollTop);
+
+    // 檢查是否點擊到選中的圖片
+    const clickedImage = getClickedImage(x, y);
+
+    if (clickedImage && selectedImageRef.current === clickedImage.id) {
+      // 檢查是否點擊到縮放控制點
+      if (getResizeHandle(x, y, clickedImage)) {
+        isResizingRef.current = true;
+        initialSizeRef.current = {
+          width: clickedImage.width,
+          height: clickedImage.height,
+        };
+        initialMouseRef.current = { x, y };
+        canvas.style.cursor = 'nw-resize';
+      } else {
+        // 普通拖拽
+        isDraggingRef.current = true;
+        dragOffsetRef.current = {
+          x: x - clickedImage.x,
+          y: y - clickedImage.y,
+        };
+        canvas.style.cursor = 'grabbing';
+      }
+    }
+  };
+
+  // 處理鼠標移動事件
+  const handleMouseMove = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+
+    // 計算滑鼠位置
+    const x =
+      e.clientX -
+      rect.left +
+      (window.scrollX || document.documentElement.scrollLeft);
+    const y =
+      e.clientY -
+      rect.top +
+      (window.scrollY || document.documentElement.scrollTop);
+
+    if (isResizingRef.current && selectedImageRef.current) {
+      // 縮放模式
+      const selectedImage = imagesRef.current.find(
+        (img) => img.id === selectedImageRef.current
+      );
+      if (selectedImage) {
+        // 計算滑鼠相對於初始位置的移動距離
+        const deltaX = x - initialMouseRef.current.x;
+        const deltaY = y - initialMouseRef.current.y;
+
+        // 使用對角線距離來計算縮放 - 更直觀的縮放方式
+        const diagonal = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+        // 判斷縮放方向：如果滑鼠往右下角移動（deltaX > 0 && deltaY > 0）則放大，否則縮小
+        const direction = deltaX + deltaY >= 0 ? 1 : -1;
+
+        // 縮放係數 - 可以調整這個值來改變縮放的敏感度
+        const sensitivity = 0.005; // 值越大，縮放越敏感
+        const scaleChange = direction * diagonal * sensitivity;
+
+        // 計算新的縮放比例
+        const newScale = Math.max(0.1, Math.min(5, 1 + scaleChange));
+
+        // 應用縮放，保持圖片的長寬比例
+        const aspectRatio =
+          initialSizeRef.current.width / initialSizeRef.current.height;
+        selectedImage.width = initialSizeRef.current.width * newScale;
+        selectedImage.height = selectedImage.width / aspectRatio;
+
+        // 重新繪製畫布
+        redrawCanvas();
+      }
+    } else if (isDraggingRef.current && selectedImageRef.current) {
+      // 拖拽模式
+      const selectedImage = imagesRef.current.find(
+        (img) => img.id === selectedImageRef.current
+      );
+      if (selectedImage) {
+        selectedImage.x = x - dragOffsetRef.current.x;
+        selectedImage.y = y - dragOffsetRef.current.y;
+
+        // 重新繪製畫布
+        redrawCanvas();
+      }
+    } else {
+      // 檢查鼠標是否在圖片上，改變游標樣式
+      const hoveredImage = getClickedImage(x, y);
+
+      if (hoveredImage && selectedImageRef.current === hoveredImage.id) {
+        // 檢查是否在縮放控制點上
+        if (getResizeHandle(x, y, hoveredImage)) {
+          canvas.style.cursor = 'nw-resize';
+        } else {
+          canvas.style.cursor = 'grab';
+        }
+      } else {
+        canvas.style.cursor = 'default';
+      }
+    }
+  };
+
+  // 處理鼠標鬆開事件
+  const handleMouseUp = () => {
+    isDraggingRef.current = false;
+    isResizingRef.current = false;
+    const canvas = canvasRef.current;
+    canvas.style.cursor = 'default';
+  };
   return (
     <canvas
       ref={canvasRef}
       style={{ display: 'block' }}
       onClick={handleClick}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
     />
   );
 };
