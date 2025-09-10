@@ -440,40 +440,83 @@ export const Canvas = () => {
         const resizeType = resizeTypeRef.current;
 
         if (resizeType.includes('corner')) {
-          // 角落縮放 - 等比例縮放
-          const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-          const scale =
-            resizeType === 'se-corner' || resizeType === 'ne-corner'
-              ? 1 + deltaX / 100
-              : 1 - deltaX / 100;
+          // 角落縮放 - 等比例縮放，跟隨滑鼠位置
+          let newWidth, newHeight;
+
+          if (resizeType === 'se-corner') {
+            // 右下角：滑鼠位置就是新的右下角
+            newWidth = Math.max(20, x - initialPositionRef.current.x);
+            newHeight = Math.max(20, y - initialPositionRef.current.y);
+          } else if (resizeType === 'nw-corner') {
+            // 左上角：滑鼠位置就是新的左上角
+            newWidth = Math.max(
+              20,
+              initialPositionRef.current.x + initialSizeRef.current.width - x
+            );
+            newHeight = Math.max(
+              20,
+              initialPositionRef.current.y + initialSizeRef.current.height - y
+            );
+          } else if (resizeType === 'ne-corner') {
+            // 右上角：滑鼠X是右邊界，滑鼠Y是上邊界
+            newWidth = Math.max(20, x - initialPositionRef.current.x);
+            newHeight = Math.max(
+              20,
+              initialPositionRef.current.y + initialSizeRef.current.height - y
+            );
+          } else if (resizeType === 'sw-corner') {
+            // 左下角：滑鼠X是左邊界，滑鼠Y是下邊界
+            newWidth = Math.max(
+              20,
+              initialPositionRef.current.x + initialSizeRef.current.width - x
+            );
+            newHeight = Math.max(20, y - initialPositionRef.current.y);
+          }
+
+          // 計算等比例縮放
+          const aspectRatio =
+            initialSizeRef.current.width / initialSizeRef.current.height;
+          const widthScale = newWidth / initialSizeRef.current.width;
+          const heightScale = newHeight / initialSizeRef.current.height;
+
+          // 選擇較小的縮放比例以保持長寬比並確保不超過滑鼠位置
+          const scale = Math.min(widthScale, heightScale);
 
           selectedImage.width = Math.max(
             20,
-            initialSizeRef.current.width * Math.max(0.1, scale)
+            initialSizeRef.current.width * scale
           );
           selectedImage.height = Math.max(
             20,
-            initialSizeRef.current.height * Math.max(0.1, scale)
+            initialSizeRef.current.height * scale
           );
 
           // 根據角落調整位置
           if (resizeType === 'nw-corner') {
             selectedImage.x =
               initialPositionRef.current.x +
-              (initialSizeRef.current.width - selectedImage.width);
+              initialSizeRef.current.width -
+              selectedImage.width;
             selectedImage.y =
               initialPositionRef.current.y +
-              (initialSizeRef.current.height - selectedImage.height);
+              initialSizeRef.current.height -
+              selectedImage.height;
           } else if (resizeType === 'ne-corner') {
+            selectedImage.x = initialPositionRef.current.x;
             selectedImage.y =
               initialPositionRef.current.y +
-              (initialSizeRef.current.height - selectedImage.height);
+              initialSizeRef.current.height -
+              selectedImage.height;
           } else if (resizeType === 'sw-corner') {
             selectedImage.x =
               initialPositionRef.current.x +
-              (initialSizeRef.current.width - selectedImage.width);
+              initialSizeRef.current.width -
+              selectedImage.width;
+            selectedImage.y = initialPositionRef.current.y;
+          } else if (resizeType === 'se-corner') {
+            selectedImage.x = initialPositionRef.current.x;
+            selectedImage.y = initialPositionRef.current.y;
           }
-          // se-corner 不需要調整位置
         } else if (resizeType === 'e-edge') {
           // 右邊緣 - 只調整寬度
           selectedImage.width = Math.max(
