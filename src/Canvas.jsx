@@ -194,7 +194,7 @@ export const Canvas = () => {
             virtualContext.save();
 
             // 繪製虛線框
-            virtualContext.strokeStyle = '#ff0000';
+            virtualContext.strokeStyle = imgData.pinned ? '#ffa500' : '#ff0000'; // 固定的圖片用橙色框
             virtualContext.lineWidth = 2;
             virtualContext.setLineDash([5, 5]);
             virtualContext.strokeRect(
@@ -272,6 +272,33 @@ export const Canvas = () => {
               cornerThreshold
             );
 
+            // 如果圖片被固定，在右上角繪製 pin 圖示
+            if (imgData.pinned) {
+              virtualContext.save();
+              virtualContext.fillStyle = '#ffa500';
+              virtualContext.strokeStyle = '#fff';
+              virtualContext.lineWidth = 2;
+
+              const pinX = imgData.x + imgData.width - 20;
+              const pinY = imgData.y + 5;
+              const pinSize = 12;
+
+              // 繪製 pin 圖示背景圓圈
+              virtualContext.beginPath();
+              virtualContext.arc(pinX, pinY, pinSize / 2 + 2, 0, Math.PI * 2);
+              virtualContext.fill();
+              virtualContext.stroke();
+
+              // 繪製 pin 圖示
+              virtualContext.fillStyle = '#fff';
+              virtualContext.font = 'bold 10px Arial';
+              virtualContext.textAlign = 'center';
+              virtualContext.textBaseline = 'middle';
+              virtualContext.fillText('📌', pinX, pinY);
+
+              virtualContext.restore();
+            }
+
             virtualContext.restore();
           }
           resolve();
@@ -323,6 +350,7 @@ export const Canvas = () => {
             flipH: false, // 水平翻轉狀態
             flipV: false, // 垂直翻轉狀態
             opacity: 1, // 不透明度（0-1）
+            pinned: false, // 是否固定位置
           });
 
           // 將圖片繪製到虛擬畫布上
@@ -425,14 +453,17 @@ export const Canvas = () => {
         ) {
           canvas.style.cursor = 'ns-resize';
         }
-      } else {
-        // 直接開始拖拽
+      } else if (!clickedImage.pinned) {
+        // 只有在圖片沒有被固定時才允許拖拽
         isDraggingRef.current = true;
         dragOffsetRef.current = {
           x: x - clickedImage.x,
           y: y - clickedImage.y,
         };
         canvas.style.cursor = 'grabbing';
+      } else {
+        // 圖片被固定，顯示禁止游標
+        canvas.style.cursor = 'not-allowed';
       }
 
       // 重新繪製畫布以顯示選取框
@@ -754,6 +785,20 @@ export const Canvas = () => {
     [redrawCanvas]
   );
 
+  // 切換選中圖片的固定狀態
+  const toggleSelectedImagePin = useCallback(() => {
+    if (selectedImageRef.current) {
+      const selectedImage = imagesRef.current.find(
+        (img) => img.id === selectedImageRef.current
+      );
+      if (selectedImage) {
+        selectedImage.pinned = !selectedImage.pinned;
+        // 觸發重新渲染以更新 UI
+        setForceUpdate((prev) => prev + 1);
+      }
+    }
+  }, []);
+
   // 從剪貼簿處理圖片貼上
   const handlePasteFromClipboard = useCallback(async () => {
     try {
@@ -800,6 +845,7 @@ export const Canvas = () => {
                 flipH: false, // 水平翻轉狀態
                 flipV: false, // 垂直翻轉狀態
                 opacity: 1, // 不透明度（0-1）
+                pinned: false, // 是否固定位置
               };
 
               imagesRef.current.push(newImage);
@@ -865,6 +911,7 @@ export const Canvas = () => {
                   flipH: false, // 水平翻轉狀態
                   flipV: false, // 垂直翻轉狀態
                   opacity: 1, // 不透明度（0-1）
+                  pinned: false, // 是否固定位置
                 };
 
                 imagesRef.current.push(newImage);
@@ -955,6 +1002,7 @@ export const Canvas = () => {
         onBringToFront={bringToFront}
         onSendToBack={sendToBack}
         onOpacityChange={changeSelectedImageOpacity}
+        onTogglePin={toggleSelectedImagePin}
       />
       <canvas
         ref={canvasRef}

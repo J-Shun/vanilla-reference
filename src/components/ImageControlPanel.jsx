@@ -11,6 +11,7 @@ const ImageControlPanel = ({
   onBringToFront,
   onSendToBack,
   onOpacityChange,
+  onTogglePin,
 }) => {
   const [showOpacitySlider, setShowOpacitySlider] = useState(false);
 
@@ -92,6 +93,18 @@ const ImageControlPanel = ({
                 <path d='M17.66,8L12,2.35L6.34,8C4.78,9.56 4,11.64 4,13.64S4.78,17.73 6.34,19.29C7.9,20.85 9.98,21.64 12,21.64C14.02,21.64 16.1,20.85 17.66,19.29C19.22,17.73 20,15.64 20,13.64S19.22,9.56 17.66,8M6,14C6,12 8,10 12,10V19C8,19 6,16 6,14Z' />
               </svg>
               不透明度
+            </button>
+            <button
+              className={`control-button ${
+                selectedImage.pinned ? 'active' : ''
+              }`}
+              onClick={onTogglePin}
+              title={selectedImage.pinned ? '取消固定位置' : '固定位置'}
+            >
+              <svg viewBox='0 0 24 24' className='button-icon'>
+                <path d='M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z' />
+              </svg>
+              {selectedImage.pinned ? '取消固定' : '固定位置'}
             </button>
           </div>
           {showOpacitySlider && (
