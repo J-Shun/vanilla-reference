@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import useCanvas from './hooks/useCanvas';
 import {
   createVirtualCanvasBg,
@@ -7,6 +7,7 @@ import {
 } from './helper/canvasHelper';
 import { virtualCanvasSize } from './constant/size';
 import { preventDefaults } from './helper/commonHelper';
+import ImageControlPanel from './components/ImageControlPanel';
 
 const dragDropEvents = ['dragenter', 'dragover', 'dragleave', 'drop'];
 
@@ -20,6 +21,9 @@ export const Canvas = () => {
 
   // 選中的圖片 ID
   const selectedImageRef = useRef(null);
+
+  // 用於觸發重新渲染的狀態
+  const [selectedImageId, setSelectedImageId] = useState(null);
 
   // 拖拽狀態
   const isDraggingRef = useRef(false);
@@ -383,6 +387,7 @@ export const Canvas = () => {
     if (clickedImage) {
       // 自動選中點擊的圖片
       selectedImageRef.current = clickedImage.id;
+      setSelectedImageId(clickedImage.id);
 
       // 檢查是否點擊到縮放控制區域
       const resizeHandle = getResizeHandle(x, y, clickedImage);
@@ -428,6 +433,7 @@ export const Canvas = () => {
     } else {
       // 點擊空白處，取消選取
       selectedImageRef.current = null;
+      setSelectedImageId(null);
       redrawCanvas();
     }
   };
@@ -636,6 +642,7 @@ export const Canvas = () => {
 
       // 清除選取狀態
       selectedImageRef.current = null;
+      setSelectedImageId(null);
 
       // 重新繪製畫布
       redrawCanvas();
@@ -663,6 +670,60 @@ export const Canvas = () => {
       );
       if (selectedImage) {
         selectedImage.flipV = !selectedImage.flipV;
+        redrawCanvas();
+      }
+    }
+  }, [redrawCanvas]);
+
+  // 複製選中的圖片
+  const duplicateSelectedImage = useCallback(() => {
+    if (selectedImageRef.current) {
+      const selectedImage = imagesRef.current.find(
+        (img) => img.id === selectedImageRef.current
+      );
+      if (selectedImage) {
+        const newImage = {
+          ...selectedImage,
+          id: Date.now(), // 使用時間戳作為新 ID
+          x: selectedImage.x + 20, // 稍微偏移位置
+          y: selectedImage.y + 20,
+        };
+        imagesRef.current.push(newImage);
+        selectedImageRef.current = newImage.id; // 選中新複製的圖片
+        setSelectedImageId(newImage.id);
+        redrawCanvas();
+      }
+    }
+  }, [redrawCanvas]);
+
+  // 將選中的圖片移到最前面
+  const bringToFront = useCallback(() => {
+    if (selectedImageRef.current) {
+      const selectedIndex = imagesRef.current.findIndex(
+        (img) => img.id === selectedImageRef.current
+      );
+      if (
+        selectedIndex !== -1 &&
+        selectedIndex < imagesRef.current.length - 1
+      ) {
+        // 將圖片移到陣列末尾（最前面）
+        const selectedImage = imagesRef.current.splice(selectedIndex, 1)[0];
+        imagesRef.current.push(selectedImage);
+        redrawCanvas();
+      }
+    }
+  }, [redrawCanvas]);
+
+  // 將選中的圖片移到最後面
+  const sendToBack = useCallback(() => {
+    if (selectedImageRef.current) {
+      const selectedIndex = imagesRef.current.findIndex(
+        (img) => img.id === selectedImageRef.current
+      );
+      if (selectedIndex !== -1 && selectedIndex > 0) {
+        // 將圖片移到陣列開頭（最後面）
+        const selectedImage = imagesRef.current.splice(selectedIndex, 1)[0];
+        imagesRef.current.unshift(selectedImage);
         redrawCanvas();
       }
     }
@@ -707,14 +768,31 @@ export const Canvas = () => {
     };
   }, [handleKeyDown]); // 添加 handleKeyDown 作為依賴
 
+  // 獲取選中的圖片對象
+  const getSelectedImage = useCallback(() => {
+    if (!selectedImageId) return null;
+    return imagesRef.current.find((img) => img.id === selectedImageId);
+  }, [selectedImageId]);
+
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ display: 'block' }}
-      onClick={handleClick}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-    />
+    <>
+      <ImageControlPanel
+        selectedImage={getSelectedImage()}
+        onFlipHorizontal={flipSelectedImageHorizontal}
+        onFlipVertical={flipSelectedImageVertical}
+        onDelete={deleteSelectedImage}
+        onDuplicate={duplicateSelectedImage}
+        onBringToFront={bringToFront}
+        onSendToBack={sendToBack}
+      />
+      <canvas
+        ref={canvasRef}
+        style={{ display: 'block' }}
+        onClick={handleClick}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+      />
+    </>
   );
 };
