@@ -1,0 +1,160 @@
+.image-control-panel {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  padding: 16px;
+  min-width: 600px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.panel-content {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.button-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.control-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 11px;
+  color: #333;
+  min-width: 60px;
+  text-align: center;
+}
+
+.control-button:hover {
+  background: #f5f5f5;
+  border-color: #007acc;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 122, 204, 0.15);
+}
+
+.control-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(0, 122, 204, 0.2);
+}
+
+.control-button.delete-button {
+  border-color: #ff4757;
+  color: #ff4757;
+}
+
+.control-button.delete-button:hover {
+  background: #ff4757;
+  color: white;
+  border-color: #ff4757;
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
+}
+
+.button-icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
+.delete-button .button-icon {
+  fill: currentColor;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .image-control-panel {
+    min-width: auto;
+    width: calc(100% - 40px);
+    left: 20px;
+    right: 20px;
+    transform: none;
+    padding: 12px;
+  }
+
+  .panel-content {
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+  }
+
+  .panel-section {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  .button-group {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .control-button {
+    min-width: 50px;
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+
+  .button-icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+/* 分隔線 */
+.panel-section:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 40px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.panel-section {
+  position: relative;
+}
