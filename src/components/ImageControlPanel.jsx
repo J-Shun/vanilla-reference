@@ -61,22 +61,22 @@ const ImageControlPanel = ({
             <button
               className='control-button'
               onClick={onBringToFront}
-              title='移到最前'
+              title='向前移動一層'
             >
               <svg viewBox='0 0 24 24' className='button-icon'>
                 <path d='M19,15H15A3,3 0 0,1 12,12A3,3 0 0,1 15,9H19A3,3 0 0,1 22,12A3,3 0 0,1 19,15M15,11A1,1 0 0,0 14,12A1,1 0 0,0 15,13H19A1,1 0 0,0 20,12A1,1 0 0,0 19,11H15M9,7H5A3,3 0 0,1 2,4A3,3 0 0,1 5,1H9A3,3 0 0,1 12,4A3,3 0 0,1 9,7M5,3A1,1 0 0,0 4,4A1,1 0 0,0 5,5H9A1,1 0 0,0 10,4A1,1 0 0,0 9,3H5Z' />
               </svg>
-              移到前面
+              前移一層
             </button>
             <button
               className='control-button'
               onClick={onSendToBack}
-              title='移到最後'
+              title='向後移動一層'
             >
               <svg viewBox='0 0 24 24' className='button-icon'>
                 <path d='M2,2H11V6H9V4H4V9H6V11H2V2M22,13V22H13V18H15V20H20V15H18V13H22M8,8V19H19V8H8Z' />
               </svg>
-              移到後面
+              後移一層
             </button>
           </div>
         </div>

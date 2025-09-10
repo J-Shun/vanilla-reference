@@ -734,7 +734,7 @@ export const Canvas = () => {
     }
   }, [redrawCanvas]);
 
-  // 將選中的圖片移到最前面
+  // 將選中的圖片向前移動一層
   const bringToFront = useCallback(() => {
     if (selectedImageRef.current) {
       const selectedIndex = imagesRef.current.findIndex(
@@ -744,24 +744,26 @@ export const Canvas = () => {
         selectedIndex !== -1 &&
         selectedIndex < imagesRef.current.length - 1
       ) {
-        // 將圖片移到陣列末尾（最前面）
-        const selectedImage = imagesRef.current.splice(selectedIndex, 1)[0];
-        imagesRef.current.push(selectedImage);
+        // 與下一個圖片交換位置（向前移動一層）
+        const temp = imagesRef.current[selectedIndex];
+        imagesRef.current[selectedIndex] = imagesRef.current[selectedIndex + 1];
+        imagesRef.current[selectedIndex + 1] = temp;
         redrawCanvas();
       }
     }
   }, [redrawCanvas]);
 
-  // 將選中的圖片移到最後面
+  // 將選中的圖片向後移動一層
   const sendToBack = useCallback(() => {
     if (selectedImageRef.current) {
       const selectedIndex = imagesRef.current.findIndex(
         (img) => img.id === selectedImageRef.current
       );
       if (selectedIndex !== -1 && selectedIndex > 0) {
-        // 將圖片移到陣列開頭（最後面）
-        const selectedImage = imagesRef.current.splice(selectedIndex, 1)[0];
-        imagesRef.current.unshift(selectedImage);
+        // 與前一個圖片交換位置（向後移動一層）
+        const temp = imagesRef.current[selectedIndex];
+        imagesRef.current[selectedIndex] = imagesRef.current[selectedIndex - 1];
+        imagesRef.current[selectedIndex - 1] = temp;
         redrawCanvas();
       }
     }
