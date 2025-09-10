@@ -158,3 +158,91 @@
 .panel-section {
   position: relative;
 }
+
+/* 不透明度控制樣式 */
+.control-button.active {
+  background: #007acc;
+  color: white;
+  border-color: #007acc;
+}
+
+.opacity-slider-container {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+  min-width: 200px;
+  z-index: 1001;
+  animation: slideDown 0.2s ease-out;
+}
+
+.opacity-slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.opacity-label {
+  font-size: 11px;
+  color: #666;
+  font-weight: 500;
+  min-width: 25px;
+  text-align: center;
+}
+
+.opacity-slider {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, transparent 0%, #007acc 100%);
+  outline: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.opacity-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #007acc;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.opacity-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 3px 8px rgba(0, 122, 204, 0.4);
+}
+
+.opacity-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #007acc;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.opacity-value {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #007acc;
+  background: rgba(0, 122, 204, 0.1);
+  padding: 4px 8px;
+  border-radius: 4px;
+}

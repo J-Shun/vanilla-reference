@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import useCanvas from './hooks/useCanvas';
 import {
   createVirtualCanvasBg,
@@ -24,6 +24,9 @@ export const Canvas = () => {
 
   // 用於觸發重新渲染的狀態
   const [selectedImageId, setSelectedImageId] = useState(null);
+
+  // 用於強制重新渲染的狀態
+  const [forceUpdate, setForceUpdate] = useState(0);
 
   // 拖拽狀態
   const isDraggingRef = useRef(false);
@@ -172,6 +175,9 @@ export const Canvas = () => {
           let scaleY = imgData.flipV ? -1 : 1;
           virtualContext.scale(scaleX, scaleY);
 
+          // 設定不透明度
+          virtualContext.globalAlpha = imgData.opacity || 1;
+
           // 繪製圖片（以中心為原點）
           virtualContext.drawImage(
             img,
@@ -316,6 +322,7 @@ export const Canvas = () => {
             height: img.height,
             flipH: false, // 水平翻轉狀態
             flipV: false, // 垂直翻轉狀態
+            opacity: 1, // 不透明度（0-1）
           });
 
           // 將圖片繪製到虛擬畫布上
@@ -729,6 +736,24 @@ export const Canvas = () => {
     }
   }, [redrawCanvas]);
 
+  // 調整選中圖片的不透明度
+  const changeSelectedImageOpacity = useCallback(
+    (opacity) => {
+      if (selectedImageRef.current) {
+        const selectedImage = imagesRef.current.find(
+          (img) => img.id === selectedImageRef.current
+        );
+        if (selectedImage) {
+          selectedImage.opacity = Math.max(0, Math.min(1, opacity)); // 確保值在 0-1 之間
+          redrawCanvas();
+          // 觸發重新渲染以更新 UI
+          setForceUpdate((prev) => prev + 1);
+        }
+      }
+    },
+    [redrawCanvas]
+  );
+
   // 從剪貼簿處理圖片貼上
   const handlePasteFromClipboard = useCallback(async () => {
     try {
@@ -774,6 +799,7 @@ export const Canvas = () => {
                 height: img.height,
                 flipH: false, // 水平翻轉狀態
                 flipV: false, // 垂直翻轉狀態
+                opacity: 1, // 不透明度（0-1）
               };
 
               imagesRef.current.push(newImage);
@@ -838,6 +864,7 @@ export const Canvas = () => {
                   height: img.height,
                   flipH: false, // 水平翻轉狀態
                   flipV: false, // 垂直翻轉狀態
+                  opacity: 1, // 不透明度（0-1）
                 };
 
                 imagesRef.current.push(newImage);
@@ -911,21 +938,23 @@ export const Canvas = () => {
   }, [handleKeyDown, handlePasteEvent]); // 添加依賴
 
   // 獲取選中的圖片對象
-  const getSelectedImage = useCallback(() => {
+  const selectedImage = useMemo(() => {
     if (!selectedImageId) return null;
     return imagesRef.current.find((img) => img.id === selectedImageId);
-  }, [selectedImageId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedImageId, forceUpdate]);
 
   return (
     <>
       <ImageControlPanel
-        selectedImage={getSelectedImage()}
+        selectedImage={selectedImage}
         onFlipHorizontal={flipSelectedImageHorizontal}
         onFlipVertical={flipSelectedImageVertical}
         onDelete={deleteSelectedImage}
         onDuplicate={duplicateSelectedImage}
         onBringToFront={bringToFront}
         onSendToBack={sendToBack}
+        onOpacityChange={changeSelectedImageOpacity}
       />
       <canvas
         ref={canvasRef}

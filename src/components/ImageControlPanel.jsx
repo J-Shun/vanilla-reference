@@ -1,4 +1,5 @@
 /* eslint-disable react/prop-types */
+import { useState } from 'react';
 import './ImageControlPanel.css';
 
 const ImageControlPanel = ({
@@ -9,8 +10,20 @@ const ImageControlPanel = ({
   onDuplicate,
   onBringToFront,
   onSendToBack,
+  onOpacityChange,
 }) => {
+  const [showOpacitySlider, setShowOpacitySlider] = useState(false);
+
   if (!selectedImage) return null;
+
+  const handleOpacityChange = (e) => {
+    const opacity = parseFloat(e.target.value);
+    onOpacityChange(opacity);
+  };
+
+  const toggleOpacitySlider = () => {
+    setShowOpacitySlider(!showOpacitySlider);
+  };
 
   return (
     <div className='image-control-panel'>
@@ -65,6 +78,42 @@ const ImageControlPanel = ({
               移到後面
             </button>
           </div>
+        </div>
+
+        <div className='panel-section'>
+          <span className='section-label'>外觀</span>
+          <div className='button-group'>
+            <button
+              className={`control-button ${showOpacitySlider ? 'active' : ''}`}
+              onClick={toggleOpacitySlider}
+              title='調整不透明度'
+            >
+              <svg viewBox='0 0 24 24' className='button-icon'>
+                <path d='M17.66,8L12,2.35L6.34,8C4.78,9.56 4,11.64 4,13.64S4.78,17.73 6.34,19.29C7.9,20.85 9.98,21.64 12,21.64C14.02,21.64 16.1,20.85 17.66,19.29C19.22,17.73 20,15.64 20,13.64S19.22,9.56 17.66,8M6,14C6,12 8,10 12,10V19C8,19 6,16 6,14Z' />
+              </svg>
+              不透明度
+            </button>
+          </div>
+          {showOpacitySlider && (
+            <div className='opacity-slider-container'>
+              <div className='opacity-slider-wrapper'>
+                <span className='opacity-label'>0%</span>
+                <input
+                  type='range'
+                  min='0'
+                  max='1'
+                  step='0.01'
+                  value={selectedImage.opacity || 1}
+                  onChange={handleOpacityChange}
+                  className='opacity-slider'
+                />
+                <span className='opacity-label'>100%</span>
+              </div>
+              <div className='opacity-value'>
+                {Math.round((selectedImage.opacity || 1) * 100)}%
+              </div>
+            </div>
+          )}
         </div>
 
         <div className='panel-section'>
