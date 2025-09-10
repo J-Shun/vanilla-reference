@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import useCanvas from './hooks/useCanvas';
 import {
   createVirtualCanvasBg,
@@ -98,7 +98,7 @@ export const Canvas = () => {
   };
 
   // 重新繪製所有圖片和選擇框
-  const redrawCanvas = () => {
+  const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     const canvasContext = contextRef.current;
     const virtualCanvas = virtualCanvasRef.current;
@@ -166,7 +166,7 @@ export const Canvas = () => {
         virtualCanvas,
       });
     });
-  };
+  }, [canvasRef, contextRef, virtualCanvasRef, virtualContextRef]);
 
   /**
    * 圖片丟入 canvas
@@ -389,6 +389,46 @@ export const Canvas = () => {
     const canvas = canvasRef.current;
     canvas.style.cursor = 'default';
   };
+
+  // 刪除選中的圖片
+  const deleteSelectedImage = useCallback(() => {
+    if (selectedImageRef.current) {
+      // 從圖片陣列中移除選中的圖片
+      imagesRef.current = imagesRef.current.filter(
+        (img) => img.id !== selectedImageRef.current
+      );
+
+      // 清除選取狀態
+      selectedImageRef.current = null;
+
+      // 重新繪製畫布
+      redrawCanvas();
+    }
+  }, [redrawCanvas]);
+
+  // 處理鍵盤事件
+  const handleKeyDown = useCallback(
+    (e) => {
+      // Delete 鍵或 Backspace 鍵刪除選中的圖片
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault(); // 防止瀏覽器的預設行為
+        deleteSelectedImage();
+      }
+    },
+    [deleteSelectedImage]
+  );
+
+  // 添加鍵盤事件監聽器
+  useEffect(() => {
+    // 監聽鍵盤事件
+    window.addEventListener('keydown', handleKeyDown);
+
+    // 清理函數
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]); // 添加 handleKeyDown 作為依賴
+
   return (
     <canvas
       ref={canvasRef}
