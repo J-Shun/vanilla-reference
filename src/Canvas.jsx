@@ -154,13 +154,30 @@ export const Canvas = () => {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
+          virtualContext.save();
+
+          // 設定變換的中心點為圖片的中心
+          const centerX = imgData.x + imgData.width / 2;
+          const centerY = imgData.y + imgData.height / 2;
+
+          // 移動到圖片中心
+          virtualContext.translate(centerX, centerY);
+
+          // 處理翻轉
+          let scaleX = imgData.flipH ? -1 : 1;
+          let scaleY = imgData.flipV ? -1 : 1;
+          virtualContext.scale(scaleX, scaleY);
+
+          // 繪製圖片（以中心為原點）
           virtualContext.drawImage(
             img,
-            imgData.x,
-            imgData.y,
+            -imgData.width / 2,
+            -imgData.height / 2,
             imgData.width,
             imgData.height
           );
+
+          virtualContext.restore();
 
           // 如果是選中的圖片，繪製虛線框和縮放控制點
           if (selectedImageRef.current === imgData.id) {
@@ -293,6 +310,8 @@ export const Canvas = () => {
             y: heightCenter,
             width: img.width,
             height: img.height,
+            flipH: false, // 水平翻轉狀態
+            flipV: false, // 垂直翻轉狀態
           });
 
           // 將圖片繪製到虛擬畫布上
@@ -623,6 +642,32 @@ export const Canvas = () => {
     }
   }, [redrawCanvas]);
 
+  // 水平翻轉選中的圖片
+  const flipSelectedImageHorizontal = useCallback(() => {
+    if (selectedImageRef.current) {
+      const selectedImage = imagesRef.current.find(
+        (img) => img.id === selectedImageRef.current
+      );
+      if (selectedImage) {
+        selectedImage.flipH = !selectedImage.flipH;
+        redrawCanvas();
+      }
+    }
+  }, [redrawCanvas]);
+
+  // 垂直翻轉選中的圖片
+  const flipSelectedImageVertical = useCallback(() => {
+    if (selectedImageRef.current) {
+      const selectedImage = imagesRef.current.find(
+        (img) => img.id === selectedImageRef.current
+      );
+      if (selectedImage) {
+        selectedImage.flipV = !selectedImage.flipV;
+        redrawCanvas();
+      }
+    }
+  }, [redrawCanvas]);
+
   // 處理鍵盤事件
   const handleKeyDown = useCallback(
     (e) => {
@@ -631,8 +676,24 @@ export const Canvas = () => {
         e.preventDefault(); // 防止瀏覽器的預設行為
         deleteSelectedImage();
       }
+
+      // Shift + H 水平翻轉
+      if (e.shiftKey && (e.key === 'H' || e.key === 'h')) {
+        e.preventDefault();
+        flipSelectedImageHorizontal();
+      }
+
+      // Shift + V 垂直翻轉
+      if (e.shiftKey && (e.key === 'V' || e.key === 'v')) {
+        e.preventDefault();
+        flipSelectedImageVertical();
+      }
     },
-    [deleteSelectedImage]
+    [
+      deleteSelectedImage,
+      flipSelectedImageHorizontal,
+      flipSelectedImageVertical,
+    ]
   );
 
   // 添加鍵盤事件監聽器
