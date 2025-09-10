@@ -729,6 +729,137 @@ export const Canvas = () => {
     }
   }, [redrawCanvas]);
 
+  // 從剪貼簿處理圖片貼上
+  const handlePasteFromClipboard = useCallback(async () => {
+    try {
+      // 檢查剪貼簿 API 是否可用
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        console.warn('剪貼簿 API 不可用');
+        return;
+      }
+
+      // 讀取剪貼簿內容
+      const clipboardItems = await navigator.clipboard.read();
+
+      for (const clipboardItem of clipboardItems) {
+        // 查找圖片類型的項目
+        const imageTypes = clipboardItem.types.filter((type) =>
+          type.startsWith('image/')
+        );
+
+        if (imageTypes.length > 0) {
+          // 獲取第一個圖片類型
+          const imageType = imageTypes[0];
+          const blob = await clipboardItem.getType(imageType);
+
+          // 將 blob 轉換為 data URL
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const canvas = canvasRef.current;
+              if (!canvas) return;
+
+              // 計算圖片置中要放的位置
+              const widthCenter = canvas.width / 2 - img.width / 2;
+              const heightCenter = canvas.height / 2 - img.height / 2;
+
+              // 將圖片資訊存入 ref
+              const newImage = {
+                id: crypto.randomUUID(),
+                src: e.target.result,
+                x: widthCenter,
+                y: heightCenter,
+                width: img.width,
+                height: img.height,
+                flipH: false, // 水平翻轉狀態
+                flipV: false, // 垂直翻轉狀態
+              };
+
+              imagesRef.current.push(newImage);
+
+              // 自動選中新加入的圖片
+              selectedImageRef.current = newImage.id;
+              setSelectedImageId(newImage.id);
+
+              // 重新繪製畫布
+              redrawCanvas();
+            };
+            img.src = e.target.result;
+          };
+          reader.readAsDataURL(blob);
+
+          // 找到第一個圖片就停止
+          break;
+        }
+      }
+    } catch (err) {
+      console.error('無法從剪貼簿讀取圖片:', err);
+
+      // 如果新 API 不可用，嘗試使用舊的 paste 事件方式
+      // 這裡我們可以顯示一個提示給用戶
+      console.info('提示：請嘗試直接在頁面上按 Ctrl+V 來貼上圖片');
+    }
+  }, [redrawCanvas, canvasRef]);
+
+  // 處理傳統的 paste 事件（作為備用方案）
+  const handlePasteEvent = useCallback(
+    (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+
+        // 檢查是否為圖片
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+
+          const blob = item.getAsFile();
+          if (blob) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const img = new Image();
+              img.onload = () => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                // 計算圖片置中要放的位置
+                const widthCenter = canvas.width / 2 - img.width / 2;
+                const heightCenter = canvas.height / 2 - img.height / 2;
+
+                // 將圖片資訊存入 ref
+                const newImage = {
+                  id: crypto.randomUUID(),
+                  src: e.target.result,
+                  x: widthCenter,
+                  y: heightCenter,
+                  width: img.width,
+                  height: img.height,
+                  flipH: false, // 水平翻轉狀態
+                  flipV: false, // 垂直翻轉狀態
+                };
+
+                imagesRef.current.push(newImage);
+
+                // 自動選中新加入的圖片
+                selectedImageRef.current = newImage.id;
+                setSelectedImageId(newImage.id);
+
+                // 重新繪製畫布
+                redrawCanvas();
+              };
+              img.src = e.target.result;
+            };
+            reader.readAsDataURL(blob);
+          }
+          break;
+        }
+      }
+    },
+    [redrawCanvas, canvasRef]
+  );
+
   // 處理鍵盤事件
   const handleKeyDown = useCallback(
     (e) => {
@@ -736,6 +867,12 @@ export const Canvas = () => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault(); // 防止瀏覽器的預設行為
         deleteSelectedImage();
+      }
+
+      // Cmd+V (macOS) 或 Ctrl+V (Windows/Linux) 貼上圖片
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'v' || e.key === 'V')) {
+        e.preventDefault();
+        handlePasteFromClipboard();
       }
 
       // Shift + H 水平翻轉
@@ -754,19 +891,24 @@ export const Canvas = () => {
       deleteSelectedImage,
       flipSelectedImageHorizontal,
       flipSelectedImageVertical,
+      handlePasteFromClipboard,
     ]
   );
 
-  // 添加鍵盤事件監聽器
+  // 添加鍵盤事件和剪貼簿事件監聽器
   useEffect(() => {
     // 監聽鍵盤事件
     window.addEventListener('keydown', handleKeyDown);
 
+    // 監聽剪貼簿貼上事件（作為備用方案）
+    window.addEventListener('paste', handlePasteEvent);
+
     // 清理函數
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('paste', handlePasteEvent);
     };
-  }, [handleKeyDown]); // 添加 handleKeyDown 作為依賴
+  }, [handleKeyDown, handlePasteEvent]); // 添加依賴
 
   // 獲取選中的圖片對象
   const getSelectedImage = useCallback(() => {
