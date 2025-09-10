@@ -793,11 +793,13 @@ export const Canvas = () => {
       );
       if (selectedImage) {
         selectedImage.pinned = !selectedImage.pinned;
+        // 立即重繪畫布以顯示視覺變化
+        redrawCanvas();
         // 觸發重新渲染以更新 UI
         setForceUpdate((prev) => prev + 1);
       }
     }
-  }, []);
+  }, [redrawCanvas]);
 
   // 從剪貼簿處理圖片貼上
   const handlePasteFromClipboard = useCallback(async () => {
