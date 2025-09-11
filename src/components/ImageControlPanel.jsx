@@ -120,16 +120,130 @@ const ImageControlPanel = ({
             </button>
           </div>
           {showEffectSelector && (
-            <div className='effect-selector-container'>
-              <div className='effect-selector-wrapper'>
-                <select
-                  value={selectedImage.effect || ''}
-                  onChange={(e) => onEffectChange(e.target.value)}
-                  className='effect-selector'
+            <div className='effect-panel'>
+              <div className='effect-panel-header'>
+                <span className='effect-panel-title'>選擇效果</span>
+              </div>
+              <div className='effect-options'>
+                <button
+                  className={`effect-option ${
+                    !selectedImage.effect ? 'active' : ''
+                  }`}
+                  onClick={() => onEffectChange('')}
+                  title='無效果'
                 >
-                  <option value=''>無效果</option>
-                  <option value='grayscale'>黑白效果</option>
-                </select>
+                  <div className='effect-preview no-effect'>
+                    <svg viewBox='0 0 24 24' className='effect-icon'>
+                      <path d='M19,7H5A2,2 0 0,0 3,9V15A2,2 0 0,0 5,17H19A2,2 0 0,0 21,15V9A2,2 0 0,0 19,7M19,15H5V9H19V15Z' />
+                    </svg>
+                  </div>
+                  <span className='effect-name'>原始</span>
+                </button>
+
+                <button
+                  className={`effect-option ${
+                    selectedImage.effect === 'grayscale' ? 'active' : ''
+                  }`}
+                  onClick={() => onEffectChange('grayscale')}
+                  title='黑白效果'
+                >
+                  <div className='effect-preview grayscale-effect'>
+                    <svg viewBox='0 0 24 24' className='effect-icon'>
+                      <path d='M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20V4Z' />
+                    </svg>
+                  </div>
+                  <span className='effect-name'>黑白</span>
+                </button>
+
+                <button
+                  className={`effect-option ${
+                    selectedImage.effect === 'sepia' ? 'active' : ''
+                  }`}
+                  onClick={() => onEffectChange('sepia')}
+                  title='復古效果'
+                >
+                  <div className='effect-preview sepia-effect'>
+                    <svg viewBox='0 0 24 24' className='effect-icon'>
+                      <path d='M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,1 12,4Z' />
+                    </svg>
+                  </div>
+                  <span className='effect-name'>復古</span>
+                </button>
+
+                <button
+                  className={`effect-option ${
+                    selectedImage.effect === 'blur' ? 'active' : ''
+                  }`}
+                  onClick={() => onEffectChange('blur')}
+                  title='模糊效果'
+                >
+                  <div className='effect-preview blur-effect'>
+                    <svg viewBox='0 0 24 24' className='effect-icon'>
+                      <path d='M14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10A2,2 0 0,1 14,12M12,3A9,9 0 0,1 21,12A9,9 0 0,1 12,21A9,9 0 0,1 3,12A9,9 0 0,1 12,3M12,5A7,7 0 0,0 5,12A7,7 0 0,0 12,19A7,7 0 0,0 19,12A7,7 0 0,0 12,5Z' />
+                    </svg>
+                  </div>
+                  <span className='effect-name'>模糊</span>
+                </button>
+
+                <button
+                  className={`effect-option ${
+                    selectedImage.effect === 'brightness' ? 'active' : ''
+                  }`}
+                  onClick={() => onEffectChange('brightness')}
+                  title='亮度增強'
+                >
+                  <div className='effect-preview brightness-effect'>
+                    <svg viewBox='0 0 24 24' className='effect-icon'>
+                      <path d='M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8M12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18M20,8.69V4H15.31L12,0.69L8.69,4H4V8.69L0.69,12L4,15.31V20H8.69L12,23.31L15.31,20H20V15.31L23.31,12L20,8.69Z' />
+                    </svg>
+                  </div>
+                  <span className='effect-name'>亮度</span>
+                </button>
+
+                <button
+                  className={`effect-option ${
+                    selectedImage.effect === 'contrast' ? 'active' : ''
+                  }`}
+                  onClick={() => onEffectChange('contrast')}
+                  title='對比增強'
+                >
+                  <div className='effect-preview contrast-effect'>
+                    <svg viewBox='0 0 24 24' className='effect-icon'>
+                      <path d='M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20V4Z' />
+                    </svg>
+                  </div>
+                  <span className='effect-name'>對比</span>
+                </button>
+
+                <button
+                  className={`effect-option ${
+                    selectedImage.effect === 'saturate' ? 'active' : ''
+                  }`}
+                  onClick={() => onEffectChange('saturate')}
+                  title='飽和度增強'
+                >
+                  <div className='effect-preview saturate-effect'>
+                    <svg viewBox='0 0 24 24' className='effect-icon'>
+                      <path d='M17.66,8L12,2.35L6.34,8C4.78,9.56 4,11.64 4,13.64S4.78,17.73 6.34,19.29C7.9,20.85 9.98,21.64 12,21.64C14.02,21.64 16.1,20.85 17.66,19.29C19.22,17.73 20,15.64 20,13.64S19.22,9.56 17.66,8Z' />
+                    </svg>
+                  </div>
+                  <span className='effect-name'>飽和</span>
+                </button>
+
+                <button
+                  className={`effect-option ${
+                    selectedImage.effect === 'hue-rotate' ? 'active' : ''
+                  }`}
+                  onClick={() => onEffectChange('hue-rotate')}
+                  title='色調旋轉'
+                >
+                  <div className='effect-preview hue-rotate-effect'>
+                    <svg viewBox='0 0 24 24' className='effect-icon'>
+                      <path d='M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M7.07,18.28C7.5,17.38 8.12,16.5 8.91,15.66L9.5,15.07L9.88,14.69C10.5,14.07 11.13,13.5 11.77,13C12.4,12.5 13.03,12.04 13.66,11.63L14.25,11.25L14.62,11C15.25,10.63 15.87,10.25 16.5,9.91C17.12,9.56 17.75,9.25 18.37,8.97C18.75,8.81 19.12,8.69 19.5,8.59C19.66,8.56 19.82,8.5 20,8.5C20.18,8.5 20.34,8.56 20.5,8.59C20.87,8.69 21.25,8.81 21.62,8.97C22.25,9.25 22.87,9.56 23.5,9.91C23.87,10.25 24.25,10.63 24.62,11L25,11.25L25.37,11.63C26,12.04 26.62,12.5 27.25,13C27.87,13.5 28.5,14.07 29.12,14.69L29.5,15.07L30.09,15.66C30.87,16.5 31.5,17.38 31.93,18.28C31.97,18.5 32,18.75 32,19C32,19.25 31.97,19.5 31.93,19.72C31.5,20.62 30.87,21.5 30.09,22.34L29.5,22.93L29.12,23.31C28.5,23.93 27.87,24.5 27.25,25C26.62,25.5 26,25.96 25.37,26.37L25,26.75L24.62,27C24,27.37 23.37,27.75 22.75,28.09C22.12,28.44 21.5,28.75 20.87,29.03C20.5,29.19 20.12,29.31 19.75,29.41C19.59,29.44 19.43,29.5 19.25,29.5C19.07,29.5 18.91,29.44 18.75,29.41C18.37,29.31 18,29.19 17.62,29.03C17,28.75 16.37,28.44 15.75,28.09C15.37,27.75 15,27.37 14.62,27L14.25,26.75L13.87,26.37C13.25,25.96 12.62,25.5 12,25C11.37,24.5 10.75,23.93 10.12,23.31L9.75,22.93L9.16,22.34C8.37,21.5 7.75,20.62 7.32,19.72C7.28,19.5 7.25,19.25 7.25,19C7.25,18.75 7.28,18.5 7.32,18.28Z' />
+                    </svg>
+                  </div>
+                  <span className='effect-name'>色調</span>
+                </button>
               </div>
             </div>
           )}
