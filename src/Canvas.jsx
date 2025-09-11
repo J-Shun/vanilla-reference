@@ -179,10 +179,31 @@ export const Canvas = () => {
           virtualContext.globalAlpha = imgData.opacity || 1;
 
           // 應用圖片效果
-          if (imgData.effect === 'grayscale') {
-            virtualContext.filter = 'grayscale(100%)';
-          } else {
-            virtualContext.filter = 'none';
+          switch (imgData.effect) {
+            case 'grayscale':
+              virtualContext.filter = 'grayscale(100%)';
+              break;
+            case 'sepia':
+              virtualContext.filter = 'sepia(100%)';
+              break;
+            case 'blur':
+              virtualContext.filter = 'blur(2px)';
+              break;
+            case 'brightness':
+              virtualContext.filter = 'brightness(1.5)';
+              break;
+            case 'contrast':
+              virtualContext.filter = 'contrast(1.5)';
+              break;
+            case 'saturate':
+              virtualContext.filter = 'saturate(1.8)';
+              break;
+            case 'hue-rotate':
+              virtualContext.filter = 'hue-rotate(90deg)';
+              break;
+            default:
+              virtualContext.filter = 'none';
+              break;
           }
 
           // 繪製圖片（以中心為原點）
@@ -358,7 +379,7 @@ export const Canvas = () => {
             flipV: false, // 垂直翻轉狀態
             opacity: 1, // 不透明度（0-1）
             pinned: false, // 是否固定位置
-            effect: null, // 圖片效果 ('grayscale' 等)
+            effect: null, // 圖片效果 ('grayscale', 'sepia', 'blur', 'brightness', 'contrast', 'saturate', 'hue-rotate' 等)
           });
 
           // 將圖片繪製到虛擬畫布上
@@ -879,7 +900,7 @@ export const Canvas = () => {
                 flipV: false, // 垂直翻轉狀態
                 opacity: 1, // 不透明度（0-1）
                 pinned: false, // 是否固定位置
-                effect: null, // 圖片效果 ('grayscale' 等)
+                effect: null, // 圖片效果 ('grayscale', 'sepia', 'blur', 'brightness', 'contrast', 'saturate', 'hue-rotate' 等)
               };
 
               imagesRef.current.push(newImage);
@@ -946,7 +967,7 @@ export const Canvas = () => {
                   flipV: false, // 垂直翻轉狀態
                   opacity: 1, // 不透明度（0-1）
                   pinned: false, // 是否固定位置
-                  effect: null, // 圖片效果 ('grayscale' 等)
+                  effect: null, // 圖片效果 ('grayscale', 'sepia', 'blur', 'brightness', 'contrast', 'saturate', 'hue-rotate' 等)
                 };
 
                 imagesRef.current.push(newImage);
