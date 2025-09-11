@@ -12,8 +12,10 @@ const ImageControlPanel = ({
   onSendToBack,
   onOpacityChange,
   onTogglePin,
+  onEffectChange,
 }) => {
   const [showOpacitySlider, setShowOpacitySlider] = useState(false);
+  const [showEffectSelector, setShowEffectSelector] = useState(false);
 
   if (!selectedImage) return null;
 
@@ -106,7 +108,31 @@ const ImageControlPanel = ({
               </svg>
               {selectedImage.pinned ? '取消固定' : '固定位置'}
             </button>
+            <button
+              className={`control-button ${showEffectSelector ? 'active' : ''}`}
+              onClick={() => setShowEffectSelector(!showEffectSelector)}
+              title='圖片效果'
+            >
+              <svg viewBox='0 0 24 24' className='button-icon'>
+                <path d='M12,2C13.1,2 14,2.9 14,4C14,5.1 13.1,6 12,6C10.9,6 10,5.1 10,4C10,2.9 10.9,2 12,2M21,9V7L19,5V6.5L17,4.5L15,6.5V5L13,7V9L15,11V16L13,18V20L15,22V20.5L17,22.5L19,20.5V22L21,20V18L19,16V11L21,9M8,16L6,14V16L4,18V20L6,22V20L8,18V16Z' />
+              </svg>
+              效果
+            </button>
           </div>
+          {showEffectSelector && (
+            <div className='effect-selector-container'>
+              <div className='effect-selector-wrapper'>
+                <select
+                  value={selectedImage.effect || ''}
+                  onChange={(e) => onEffectChange(e.target.value)}
+                  className='effect-selector'
+                >
+                  <option value=''>無效果</option>
+                  <option value='grayscale'>黑白效果</option>
+                </select>
+              </div>
+            </div>
+          )}
           {showOpacitySlider && (
             <div className='opacity-slider-container'>
               <div className='opacity-slider-wrapper'>

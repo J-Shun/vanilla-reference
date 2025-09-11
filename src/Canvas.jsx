@@ -178,6 +178,13 @@ export const Canvas = () => {
           // 設定不透明度
           virtualContext.globalAlpha = imgData.opacity || 1;
 
+          // 應用圖片效果
+          if (imgData.effect === 'grayscale') {
+            virtualContext.filter = 'grayscale(100%)';
+          } else {
+            virtualContext.filter = 'none';
+          }
+
           // 繪製圖片（以中心為原點）
           virtualContext.drawImage(
             img,
@@ -351,6 +358,7 @@ export const Canvas = () => {
             flipV: false, // 垂直翻轉狀態
             opacity: 1, // 不透明度（0-1）
             pinned: false, // 是否固定位置
+            effect: null, // 圖片效果 ('grayscale' 等)
           });
 
           // 將圖片繪製到虛擬畫布上
@@ -803,6 +811,27 @@ export const Canvas = () => {
     }
   }, [redrawCanvas]);
 
+  // 切換選中圖片的效果
+  const changeSelectedImageEffect = useCallback(
+    (effectName) => {
+      if (selectedImageRef.current) {
+        const selectedImage = imagesRef.current.find(
+          (img) => img.id === selectedImageRef.current
+        );
+        if (selectedImage) {
+          // 如果已經有相同效果，則移除；否則設定新效果
+          selectedImage.effect =
+            selectedImage.effect === effectName ? null : effectName;
+          // 立即重繪畫布以顯示效果
+          redrawCanvas();
+          // 觸發重新渲染以更新 UI
+          setForceUpdate((prev) => prev + 1);
+        }
+      }
+    },
+    [redrawCanvas]
+  );
+
   // 從剪貼簿處理圖片貼上
   const handlePasteFromClipboard = useCallback(async () => {
     try {
@@ -850,6 +879,7 @@ export const Canvas = () => {
                 flipV: false, // 垂直翻轉狀態
                 opacity: 1, // 不透明度（0-1）
                 pinned: false, // 是否固定位置
+                effect: null, // 圖片效果 ('grayscale' 等)
               };
 
               imagesRef.current.push(newImage);
@@ -916,6 +946,7 @@ export const Canvas = () => {
                   flipV: false, // 垂直翻轉狀態
                   opacity: 1, // 不透明度（0-1）
                   pinned: false, // 是否固定位置
+                  effect: null, // 圖片效果 ('grayscale' 等)
                 };
 
                 imagesRef.current.push(newImage);
@@ -1007,6 +1038,7 @@ export const Canvas = () => {
         onSendToBack={sendToBack}
         onOpacityChange={changeSelectedImageOpacity}
         onTogglePin={toggleSelectedImagePin}
+        onEffectChange={changeSelectedImageEffect}
       />
       <canvas
         ref={canvasRef}
