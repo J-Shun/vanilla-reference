@@ -8,6 +8,7 @@ import {
 import { virtualCanvasSize } from './constant/size';
 import { preventDefaults } from './helper/commonHelper';
 import ImageControlPanel from './components/ImageControlPanel';
+import EyedropperCursor from './components/EyedropperCursor';
 
 const dragDropEvents = ['dragenter', 'dragover', 'dragleave', 'drop'];
 
@@ -38,6 +39,20 @@ export const Canvas = () => {
   const initialSizeRef = useRef({ width: 0, height: 0 });
   const initialMouseRef = useRef({ x: 0, y: 0 });
   const initialPositionRef = useRef({ x: 0, y: 0 }); // 儲存初始位置
+
+  // 吸管工具狀態
+  const [isEyedropperActive, setIsEyedropperActive] = useState(false);
+  const [eyedropperColor, setEyedropperColor] = useState(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [previewColor, setPreviewColor] = useState(null);
+
+  // 處理吸管工具游標狀態
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.style.cursor = isEyedropperActive ? 'crosshair' : 'default';
+    }
+  }, [isEyedropperActive, canvasRef]);
 
   useEffect(() => {
     // 處理虛擬畫布的初始尺寸
@@ -430,23 +445,123 @@ export const Canvas = () => {
     // 這裡保留以備未來需要其他點擊邏輯
   };
 
+  // 吸管工具功能
+  const toggleEyedropper = () => {
+    const newState = !isEyedropperActive;
+    setIsEyedropperActive(newState);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.style.cursor = newState ? 'crosshair' : 'default';
+    }
+
+    // 關閉吸管工具時清除預覽顏色
+    if (!newState) {
+      setPreviewColor(null);
+    }
+  };
+
+  // 從畫布取得指定位置的顏色
+  const getColorAtPosition = (x, y) => {
+    const canvas = canvasRef.current;
+    const context = contextRef.current;
+
+    if (!canvas || !context) return null;
+
+    try {
+      // 取得該像素的 RGBA 資料
+      const imageData = context.getImageData(x, y, 1, 1);
+      const data = imageData.data;
+
+      // 轉換為十六進制格式
+      const r = data[0];
+      const g = data[1];
+      const b = data[2];
+      const a = data[3];
+
+      // 如果透明度為 0，嘗試從虛擬畫布取色
+      if (a === 0) {
+        // 如果主畫布該位置透明，嘗試從虛擬畫布取色（背景）
+        const virtualCanvas = virtualCanvasRef.current;
+        const virtualContext = virtualContextRef.current;
+
+        if (virtualCanvas && virtualContext) {
+          try {
+            const virtualImageData = virtualContext.getImageData(x, y, 1, 1);
+            const virtualData = virtualImageData.data;
+            const vr = virtualData[0];
+            const vg = virtualData[1];
+            const vb = virtualData[2];
+            const va = virtualData[3];
+
+            if (va > 0) {
+              const virtualHex =
+                '#' +
+                [vr, vg, vb]
+                  .map((x) => {
+                    const hex = x.toString(16);
+                    return hex.length === 1 ? '0' + hex : hex;
+                  })
+                  .join('');
+              return virtualHex;
+            }
+          } catch (virtualError) {
+            console.log('無法從虛擬畫布取色:', virtualError);
+          }
+        }
+        return 'transparent';
+      }
+
+      // 轉換為十六進制
+      const hex =
+        '#' +
+        [r, g, b]
+          .map((x) => {
+            const hex = x.toString(16);
+            return hex.length === 1 ? '0' + hex : hex;
+          })
+          .join('');
+
+      return hex;
+    } catch (error) {
+      console.error('無法取得顏色資料:', error);
+      return null;
+    }
+  };
+
   // 處理鼠標按下事件
   const handleMouseDown = (e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
 
-    // 計算點擊位置相對於虛擬畫布的座標
-    const x =
+    // 計算點擊位置相對於畫布的座標
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // 如果吸管工具啟用，執行取色功能
+    if (isEyedropperActive) {
+      const color = getColorAtPosition(x, y);
+      if (color && color !== 'transparent') {
+        setEyedropperColor(color);
+        console.log('取得顏色:', color);
+      }
+      // 取色後自動關閉吸管工具
+      setIsEyedropperActive(false);
+      canvas.style.cursor = 'default';
+      return; // 結束函數，不執行其他點擊邏輯
+    }
+
+    // 計算點擊位置相對於虛擬畫布的座標（用於圖片操作）
+    const virtualX =
       e.clientX -
       rect.left +
       (window.scrollX || document.documentElement.scrollLeft);
-    const y =
+    const virtualY =
       e.clientY -
       rect.top +
       (window.scrollY || document.documentElement.scrollTop);
 
     // 檢查是否點擊到任何圖片
-    const clickedImage = getClickedImage(x, y);
+    const clickedImage = getClickedImage(virtualX, virtualY);
 
     if (clickedImage) {
       // 自動選中點擊的圖片
@@ -454,7 +569,7 @@ export const Canvas = () => {
       setSelectedImageId(clickedImage.id);
 
       // 檢查是否點擊到縮放控制區域
-      const resizeHandle = getResizeHandle(x, y, clickedImage);
+      const resizeHandle = getResizeHandle(virtualX, virtualY, clickedImage);
       if (resizeHandle) {
         isResizingRef.current = true;
         resizeTypeRef.current = resizeHandle;
@@ -466,7 +581,7 @@ export const Canvas = () => {
           x: clickedImage.x,
           y: clickedImage.y,
         };
-        initialMouseRef.current = { x, y };
+        initialMouseRef.current = { x: virtualX, y: virtualY };
 
         // 根據縮放類型設定游標
         if (resizeHandle.includes('corner')) {
@@ -486,8 +601,8 @@ export const Canvas = () => {
         // 只有在圖片沒有被固定時才允許拖拽
         isDraggingRef.current = true;
         dragOffsetRef.current = {
-          x: x - clickedImage.x,
-          y: y - clickedImage.y,
+          x: virtualX - clickedImage.x,
+          y: virtualY - clickedImage.y,
         };
         canvas.style.cursor = 'grabbing';
       } else {
@@ -510,7 +625,20 @@ export const Canvas = () => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
 
-    // 計算滑鼠位置
+    // 計算畫布上的鼠標位置
+    const canvasX = e.clientX - rect.left;
+    const canvasY = e.clientY - rect.top;
+
+    // 如果吸管工具啟用，更新鼠標位置和預覽顏色
+    if (isEyedropperActive) {
+      setMousePosition({ x: canvasX, y: canvasY });
+
+      // 實時取得當前位置的顏色作為預覽
+      const currentColor = getColorAtPosition(canvasX, canvasY);
+      setPreviewColor(currentColor);
+    }
+
+    // 計算滑鼠位置（用於圖片操作）
     const x =
       e.clientX -
       rect.left +
@@ -1060,6 +1188,15 @@ export const Canvas = () => {
         onOpacityChange={changeSelectedImageOpacity}
         onTogglePin={toggleSelectedImagePin}
         onEffectChange={changeSelectedImageEffect}
+        onEyedropperToggle={toggleEyedropper}
+        isEyedropperActive={isEyedropperActive}
+        eyedropperColor={eyedropperColor}
+      />
+      <EyedropperCursor
+        x={mousePosition.x}
+        y={mousePosition.y}
+        isActive={isEyedropperActive}
+        previewColor={previewColor}
       />
       <canvas
         ref={canvasRef}
