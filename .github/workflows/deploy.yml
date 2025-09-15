@@ -1,0 +1,43 @@
+name: Deploy Vite to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js 環境
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: 安裝依賴與建置
+        run: |
+          npm install
+          npm run build
+          touch dist/.nojekyll
+
+      - name: 上傳 artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          name: github-pages # 確保名稱為 "github-pages"
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: 部署到 GitHub Pages
+        uses: actions/deploy-pages@v4
