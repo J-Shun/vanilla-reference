@@ -21,6 +21,9 @@ export const Canvas = () => {
   // 存放圖片資訊的 ref array，方便針對圖片進行操作
   const imagesRef = useRef([]);
 
+  // 緩存已載入的圖片對象，避免重複載入造成閃爍
+  const imageObjectsRef = useRef(new Map());
+
   // 選中的圖片 ID
   const selectedImageRef = useRef(null);
 
@@ -159,6 +162,181 @@ export const Canvas = () => {
     return null;
   };
 
+  // 將圖片繪製到虛擬畫布的函數
+  const drawImageToVirtualCanvas = useCallback(
+    (img, imgData, virtualContext) => {
+      virtualContext.save();
+
+      // 設定變換的中心點為圖片的中心
+      const centerX = imgData.x + imgData.width / 2;
+      const centerY = imgData.y + imgData.height / 2;
+
+      // 移動到圖片中心
+      virtualContext.translate(centerX, centerY);
+
+      // 處理翻轉
+      let scaleX = imgData.flipH ? -1 : 1;
+      let scaleY = imgData.flipV ? -1 : 1;
+      virtualContext.scale(scaleX, scaleY);
+
+      // 設定不透明度
+      virtualContext.globalAlpha = imgData.opacity || 1;
+
+      // 應用圖片效果
+      switch (imgData.effect) {
+        case 'grayscale':
+          virtualContext.filter = 'grayscale(100%)';
+          break;
+        case 'sepia':
+          virtualContext.filter = 'sepia(100%)';
+          break;
+        case 'blur':
+          virtualContext.filter = 'blur(2px)';
+          break;
+        case 'brightness':
+          virtualContext.filter = 'brightness(1.5)';
+          break;
+        case 'contrast':
+          virtualContext.filter = 'contrast(1.5)';
+          break;
+        case 'saturate':
+          virtualContext.filter = 'saturate(1.8)';
+          break;
+        case 'hue-rotate':
+          virtualContext.filter = 'hue-rotate(90deg)';
+          break;
+        default:
+          virtualContext.filter = 'none';
+          break;
+      }
+
+      // 繪製圖片（以中心為原點）
+      virtualContext.drawImage(
+        img,
+        -imgData.width / 2,
+        -imgData.height / 2,
+        imgData.width,
+        imgData.height
+      );
+
+      virtualContext.restore();
+
+      // 如果是選中的圖片，繪製虛線框和縮放控制點
+      if (selectedImageRef.current === imgData.id) {
+        virtualContext.save();
+
+        // 繪製虛線框
+        virtualContext.strokeStyle = imgData.pinned ? '#ffa500' : '#ff0000'; // 固定的圖片用橙色框
+        virtualContext.lineWidth = 2;
+        virtualContext.setLineDash([5, 5]);
+        virtualContext.strokeRect(
+          imgData.x,
+          imgData.y,
+          imgData.width,
+          imgData.height
+        );
+
+        // 繪製縮放控制區域提示（邊緣高亮）
+        const edgeThreshold = 15;
+        const cornerThreshold = 30;
+
+        virtualContext.save();
+        virtualContext.strokeStyle = '#ff0000';
+        virtualContext.lineWidth = 1;
+        virtualContext.setLineDash([3, 3]);
+
+        // 繪製邊緣區域
+        // 左邊緣
+        virtualContext.strokeRect(
+          imgData.x,
+          imgData.y,
+          edgeThreshold,
+          imgData.height
+        );
+        // 右邊緣
+        virtualContext.strokeRect(
+          imgData.x + imgData.width - edgeThreshold,
+          imgData.y,
+          edgeThreshold,
+          imgData.height
+        );
+        // 上邊緣
+        virtualContext.strokeRect(
+          imgData.x,
+          imgData.y,
+          imgData.width,
+          edgeThreshold
+        );
+        // 下邊緣
+        virtualContext.strokeRect(
+          imgData.x,
+          imgData.y + imgData.height - edgeThreshold,
+          imgData.width,
+          edgeThreshold
+        );
+
+        // 繪製角落區域（更明顯的標示）
+        virtualContext.setLineDash([]);
+        virtualContext.fillStyle = 'rgba(255, 0, 0, 0.2)';
+        // 四個角落
+        virtualContext.fillRect(
+          imgData.x,
+          imgData.y,
+          cornerThreshold,
+          cornerThreshold
+        );
+        virtualContext.fillRect(
+          imgData.x + imgData.width - cornerThreshold,
+          imgData.y,
+          cornerThreshold,
+          cornerThreshold
+        );
+        virtualContext.fillRect(
+          imgData.x,
+          imgData.y + imgData.height - cornerThreshold,
+          cornerThreshold,
+          cornerThreshold
+        );
+        virtualContext.fillRect(
+          imgData.x + imgData.width - cornerThreshold,
+          imgData.y + imgData.height - cornerThreshold,
+          cornerThreshold,
+          cornerThreshold
+        );
+
+        // 如果圖片被固定，在右上角繪製 pin 圖示
+        if (imgData.pinned) {
+          virtualContext.save();
+          virtualContext.fillStyle = '#ffa500';
+          virtualContext.strokeStyle = '#fff';
+          virtualContext.lineWidth = 2;
+
+          const pinX = imgData.x + imgData.width - 20;
+          const pinY = imgData.y + 5;
+          const pinSize = 12;
+
+          // 繪製 pin 圖示背景圓圈
+          virtualContext.beginPath();
+          virtualContext.arc(pinX, pinY, pinSize / 2 + 2, 0, Math.PI * 2);
+          virtualContext.fill();
+          virtualContext.stroke();
+
+          // 繪製 pin 圖示
+          virtualContext.fillStyle = '#fff';
+          virtualContext.font = 'bold 10px Arial';
+          virtualContext.textAlign = 'center';
+          virtualContext.textBaseline = 'middle';
+          virtualContext.fillText('📌', pinX, pinY);
+
+          virtualContext.restore();
+        }
+
+        virtualContext.restore();
+      }
+    },
+    []
+  );
+
   // 重新繪製所有圖片和選擇框
   const redrawCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -175,179 +353,23 @@ export const Canvas = () => {
     // 使用 Promise 來處理圖片載入
     const imagePromises = imagesRef.current.map((imgData) => {
       return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          virtualContext.save();
-
-          // 設定變換的中心點為圖片的中心
-          const centerX = imgData.x + imgData.width / 2;
-          const centerY = imgData.y + imgData.height / 2;
-
-          // 移動到圖片中心
-          virtualContext.translate(centerX, centerY);
-
-          // 處理翻轉
-          let scaleX = imgData.flipH ? -1 : 1;
-          let scaleY = imgData.flipV ? -1 : 1;
-          virtualContext.scale(scaleX, scaleY);
-
-          // 設定不透明度
-          virtualContext.globalAlpha = imgData.opacity || 1;
-
-          // 應用圖片效果
-          switch (imgData.effect) {
-            case 'grayscale':
-              virtualContext.filter = 'grayscale(100%)';
-              break;
-            case 'sepia':
-              virtualContext.filter = 'sepia(100%)';
-              break;
-            case 'blur':
-              virtualContext.filter = 'blur(2px)';
-              break;
-            case 'brightness':
-              virtualContext.filter = 'brightness(1.5)';
-              break;
-            case 'contrast':
-              virtualContext.filter = 'contrast(1.5)';
-              break;
-            case 'saturate':
-              virtualContext.filter = 'saturate(1.8)';
-              break;
-            case 'hue-rotate':
-              virtualContext.filter = 'hue-rotate(90deg)';
-              break;
-            default:
-              virtualContext.filter = 'none';
-              break;
-          }
-
-          // 繪製圖片（以中心為原點）
-          virtualContext.drawImage(
-            img,
-            -imgData.width / 2,
-            -imgData.height / 2,
-            imgData.width,
-            imgData.height
-          );
-
-          virtualContext.restore();
-
-          // 如果是選中的圖片，繪製虛線框和縮放控制點
-          if (selectedImageRef.current === imgData.id) {
-            virtualContext.save();
-
-            // 繪製虛線框
-            virtualContext.strokeStyle = imgData.pinned ? '#ffa500' : '#ff0000'; // 固定的圖片用橙色框
-            virtualContext.lineWidth = 2;
-            virtualContext.setLineDash([5, 5]);
-            virtualContext.strokeRect(
-              imgData.x,
-              imgData.y,
-              imgData.width,
-              imgData.height
-            );
-
-            // 繪製縮放控制區域提示（邊緣高亮）
-            const edgeThreshold = 15;
-            const cornerThreshold = 30;
-
-            virtualContext.save();
-            virtualContext.strokeStyle = '#ff0000';
-            virtualContext.lineWidth = 1;
-            virtualContext.setLineDash([3, 3]);
-
-            // 繪製邊緣區域
-            // 左邊緣
-            virtualContext.strokeRect(
-              imgData.x,
-              imgData.y,
-              edgeThreshold,
-              imgData.height
-            );
-            // 右邊緣
-            virtualContext.strokeRect(
-              imgData.x + imgData.width - edgeThreshold,
-              imgData.y,
-              edgeThreshold,
-              imgData.height
-            );
-            // 上邊緣
-            virtualContext.strokeRect(
-              imgData.x,
-              imgData.y,
-              imgData.width,
-              edgeThreshold
-            );
-            // 下邊緣
-            virtualContext.strokeRect(
-              imgData.x,
-              imgData.y + imgData.height - edgeThreshold,
-              imgData.width,
-              edgeThreshold
-            );
-
-            // 繪製角落區域（更明顯的標示）
-            virtualContext.setLineDash([]);
-            virtualContext.fillStyle = 'rgba(255, 0, 0, 0.2)';
-            // 四個角落
-            virtualContext.fillRect(
-              imgData.x,
-              imgData.y,
-              cornerThreshold,
-              cornerThreshold
-            );
-            virtualContext.fillRect(
-              imgData.x + imgData.width - cornerThreshold,
-              imgData.y,
-              cornerThreshold,
-              cornerThreshold
-            );
-            virtualContext.fillRect(
-              imgData.x,
-              imgData.y + imgData.height - cornerThreshold,
-              cornerThreshold,
-              cornerThreshold
-            );
-            virtualContext.fillRect(
-              imgData.x + imgData.width - cornerThreshold,
-              imgData.y + imgData.height - cornerThreshold,
-              cornerThreshold,
-              cornerThreshold
-            );
-
-            // 如果圖片被固定，在右上角繪製 pin 圖示
-            if (imgData.pinned) {
-              virtualContext.save();
-              virtualContext.fillStyle = '#ffa500';
-              virtualContext.strokeStyle = '#fff';
-              virtualContext.lineWidth = 2;
-
-              const pinX = imgData.x + imgData.width - 20;
-              const pinY = imgData.y + 5;
-              const pinSize = 12;
-
-              // 繪製 pin 圖示背景圓圈
-              virtualContext.beginPath();
-              virtualContext.arc(pinX, pinY, pinSize / 2 + 2, 0, Math.PI * 2);
-              virtualContext.fill();
-              virtualContext.stroke();
-
-              // 繪製 pin 圖示
-              virtualContext.fillStyle = '#fff';
-              virtualContext.font = 'bold 10px Arial';
-              virtualContext.textAlign = 'center';
-              virtualContext.textBaseline = 'middle';
-              virtualContext.fillText('📌', pinX, pinY);
-
-              virtualContext.restore();
-            }
-
-            virtualContext.restore();
-          }
+        // 檢查是否已經有緩存的圖片對象
+        if (imageObjectsRef.current.has(imgData.id)) {
+          const img = imageObjectsRef.current.get(imgData.id);
+          // 直接使用緩存的圖片對象進行繪製
+          drawImageToVirtualCanvas(img, imgData, virtualContext);
           resolve();
-        };
-        img.src = imgData.src;
+        } else {
+          // 如果沒有緩存，則載入新圖片
+          const img = new Image();
+          img.onload = () => {
+            // 將載入的圖片對象存入緩存
+            imageObjectsRef.current.set(imgData.id, img);
+            drawImageToVirtualCanvas(img, imgData, virtualContext);
+            resolve();
+          };
+          img.src = imgData.src;
+        }
       });
     });
 
@@ -359,7 +381,13 @@ export const Canvas = () => {
         virtualCanvas,
       });
     });
-  }, [canvasRef, contextRef, virtualCanvasRef, virtualContextRef]);
+  }, [
+    canvasRef,
+    contextRef,
+    virtualCanvasRef,
+    virtualContextRef,
+    drawImageToVirtualCanvas,
+  ]);
 
   /**
    * 圖片丟入 canvas
@@ -831,6 +859,9 @@ export const Canvas = () => {
   // 刪除選中的圖片
   const deleteSelectedImage = useCallback(() => {
     if (selectedImageRef.current) {
+      // 從緩存中移除圖片對象
+      imageObjectsRef.current.delete(selectedImageRef.current);
+
       // 從圖片陣列中移除選中的圖片
       imagesRef.current = imagesRef.current.filter(
         (img) => img.id !== selectedImageRef.current
