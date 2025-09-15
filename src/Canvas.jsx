@@ -9,6 +9,7 @@ import { virtualCanvasSize } from './constant/size';
 import { preventDefaults } from './helper/commonHelper';
 import ImageControlPanel from './components/ImageControlPanel';
 import EyedropperCursor from './components/EyedropperCursor';
+import Toolbar from './components/Toolbar';
 
 const dragDropEvents = ['dragenter', 'dragover', 'dragleave', 'drop'];
 
@@ -1177,6 +1178,11 @@ export const Canvas = () => {
 
   return (
     <>
+      <Toolbar
+        onEyedropperToggle={toggleEyedropper}
+        isEyedropperActive={isEyedropperActive}
+        eyedropperColor={eyedropperColor}
+      />
       <ImageControlPanel
         selectedImage={selectedImage}
         onFlipHorizontal={flipSelectedImageHorizontal}
@@ -1188,9 +1194,6 @@ export const Canvas = () => {
         onOpacityChange={changeSelectedImageOpacity}
         onTogglePin={toggleSelectedImagePin}
         onEffectChange={changeSelectedImageEffect}
-        onEyedropperToggle={toggleEyedropper}
-        isEyedropperActive={isEyedropperActive}
-        eyedropperColor={eyedropperColor}
       />
       <EyedropperCursor
         x={mousePosition.x}
