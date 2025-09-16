@@ -33,6 +33,12 @@ export const Canvas = () => {
   // 用於強制重新渲染的狀態
   const [forceUpdate, setForceUpdate] = useState(0);
 
+  // 性能優化相關的 ref
+  const animationFrameRef = useRef(null);
+  const needsRedraw = useRef(false);
+  const lastMousePosition = useRef({ x: 0, y: 0 });
+  const throttleTimer = useRef(null);
+
   // 拖拽狀態
   const isDraggingRef = useRef(false);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
@@ -337,8 +343,8 @@ export const Canvas = () => {
     []
   );
 
-  // 重新繪製所有圖片和選擇框
-  const redrawCanvas = useCallback(() => {
+  // 立即重繪函數（內部使用）
+  const redrawCanvasImmediate = useCallback(() => {
     const canvas = canvasRef.current;
     const canvasContext = contextRef.current;
     const virtualCanvas = virtualCanvasRef.current;
@@ -350,37 +356,49 @@ export const Canvas = () => {
     virtualContext.clearRect(0, 0, virtualCanvas.width, virtualCanvas.height);
     createVirtualCanvasBg({ context: virtualContext });
 
-    // 使用 Promise 來處理圖片載入
-    const imagePromises = imagesRef.current.map((imgData) => {
-      return new Promise((resolve) => {
-        // 檢查是否已經有緩存的圖片對象
-        if (imageObjectsRef.current.has(imgData.id)) {
-          const img = imageObjectsRef.current.get(imgData.id);
-          // 直接使用緩存的圖片對象進行繪製
+    // 同步繪製所有已緩存的圖片，避免 Promise.all 等待
+    let pendingImages = 0;
+    let completedImages = 0;
+
+    const checkComplete = () => {
+      completedImages++;
+      if (completedImages === imagesRef.current.length) {
+        updateVisibleCanvas({
+          canvas,
+          canvasContext,
+          virtualCanvas,
+        });
+      }
+    };
+
+    imagesRef.current.forEach((imgData) => {
+      if (imageObjectsRef.current.has(imgData.id)) {
+        // 直接使用緩存的圖片對象進行繪製
+        const img = imageObjectsRef.current.get(imgData.id);
+        drawImageToVirtualCanvas(img, imgData, virtualContext);
+        checkComplete();
+      } else {
+        // 如果沒有緩存，則載入新圖片
+        pendingImages++;
+        const img = new Image();
+        img.onload = () => {
+          // 將載入的圖片對象存入緩存
+          imageObjectsRef.current.set(imgData.id, img);
           drawImageToVirtualCanvas(img, imgData, virtualContext);
-          resolve();
-        } else {
-          // 如果沒有緩存，則載入新圖片
-          const img = new Image();
-          img.onload = () => {
-            // 將載入的圖片對象存入緩存
-            imageObjectsRef.current.set(imgData.id, img);
-            drawImageToVirtualCanvas(img, imgData, virtualContext);
-            resolve();
-          };
-          img.src = imgData.src;
-        }
-      });
+          checkComplete();
+        };
+        img.src = imgData.src;
+      }
     });
 
-    // 等所有圖片載入完成後更新主畫布
-    Promise.all(imagePromises).then(() => {
+    // 如果所有圖片都已緩存，立即更新畫布
+    if (pendingImages === 0) {
       updateVisibleCanvas({
         canvas,
         canvasContext,
         virtualCanvas,
       });
-    });
+    }
   }, [
     canvasRef,
     contextRef,
@@ -388,6 +406,28 @@ export const Canvas = () => {
     virtualContextRef,
     drawImageToVirtualCanvas,
   ]);
+
+  // 優化的重繪函數 - 使用 RAF 來避免過度重繪
+  const scheduleRedraw = useCallback(() => {
+    if (needsRedraw.current) return; // 如果已經安排重繪，就不要重複安排
+
+    needsRedraw.current = true;
+
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
+    animationFrameRef.current = requestAnimationFrame(() => {
+      redrawCanvasImmediate();
+      needsRedraw.current = false;
+      animationFrameRef.current = null;
+    });
+  }, [redrawCanvasImmediate]);
+
+  // 重新繪製所有圖片和選擇框（對外接口）
+  const redrawCanvas = useCallback(() => {
+    scheduleRedraw();
+  }, [scheduleRedraw]);
 
   /**
    * 圖片丟入 canvas
@@ -489,7 +529,88 @@ export const Canvas = () => {
     }
   };
 
-  // 從畫布取得指定位置的顏色
+  // 節流版本的取色函數
+  const getColorAtPositionThrottled = useCallback(
+    (x, y) => {
+      // 檢查位置是否變化足夠大，避免頻繁取色
+      const deltaX = Math.abs(x - lastMousePosition.current.x);
+      const deltaY = Math.abs(y - lastMousePosition.current.y);
+
+      if (deltaX < 2 && deltaY < 2) {
+        return previewColor; // 返回上次的顏色
+      }
+
+      lastMousePosition.current = { x, y };
+
+      const canvas = canvasRef.current;
+      const context = contextRef.current;
+
+      if (!canvas || !context) return null;
+
+      try {
+        // 取得該像素的 RGBA 資料
+        const imageData = context.getImageData(x, y, 1, 1);
+        const data = imageData.data;
+
+        // 轉換為十六進制格式
+        const r = data[0];
+        const g = data[1];
+        const b = data[2];
+        const a = data[3];
+
+        // 如果透明度為 0，嘗試從虛擬畫布取色
+        if (a === 0) {
+          // 如果主畫布該位置透明，嘗試從虛擬畫布取色（背景）
+          const virtualCanvas = virtualCanvasRef.current;
+          const virtualContext = virtualContextRef.current;
+
+          if (virtualCanvas && virtualContext) {
+            try {
+              const virtualImageData = virtualContext.getImageData(x, y, 1, 1);
+              const virtualData = virtualImageData.data;
+              const vr = virtualData[0];
+              const vg = virtualData[1];
+              const vb = virtualData[2];
+              const va = virtualData[3];
+
+              if (va > 0) {
+                const virtualHex =
+                  '#' +
+                  [vr, vg, vb]
+                    .map((x) => {
+                      const hex = x.toString(16);
+                      return hex.length === 1 ? '0' + hex : hex;
+                    })
+                    .join('');
+                return virtualHex;
+              }
+            } catch (virtualError) {
+              console.log('無法從虛擬畫布取色:', virtualError);
+            }
+          }
+          return 'transparent';
+        }
+
+        // 轉換為十六進制
+        const hex =
+          '#' +
+          [r, g, b]
+            .map((x) => {
+              const hex = x.toString(16);
+              return hex.length === 1 ? '0' + hex : hex;
+            })
+            .join('');
+
+        return hex;
+      } catch (error) {
+        console.error('無法取得顏色資料:', error);
+        return null;
+      }
+    },
+    [previewColor, canvasRef, contextRef, virtualCanvasRef, virtualContextRef]
+  );
+
+  // 從畫布取得指定位置的顏色（保持向後兼容）
   const getColorAtPosition = (x, y) => {
     const canvas = canvasRef.current;
     const context = contextRef.current;
@@ -650,202 +771,223 @@ export const Canvas = () => {
   };
 
   // 處理鼠標移動事件
-  const handleMouseMove = (e) => {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
+  const handleMouseMove = useCallback(
+    (e) => {
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
 
-    // 計算畫布上的鼠標位置
-    const canvasX = e.clientX - rect.left;
-    const canvasY = e.clientY - rect.top;
+      // 計算畫布上的鼠標位置
+      const canvasX = e.clientX - rect.left;
+      const canvasY = e.clientY - rect.top;
 
-    // 如果吸管工具啟用，更新鼠標位置和預覽顏色
-    if (isEyedropperActive) {
-      setMousePosition({ x: canvasX, y: canvasY });
+      // 如果吸管工具啟用，更新鼠標位置和預覽顏色
+      if (isEyedropperActive) {
+        setMousePosition({ x: canvasX, y: canvasY });
 
-      // 實時取得當前位置的顏色作為預覽
-      const currentColor = getColorAtPosition(canvasX, canvasY);
-      setPreviewColor(currentColor);
-    }
-
-    // 計算滑鼠位置（用於圖片操作）
-    const x =
-      e.clientX -
-      rect.left +
-      (window.scrollX || document.documentElement.scrollLeft);
-    const y =
-      e.clientY -
-      rect.top +
-      (window.scrollY || document.documentElement.scrollTop);
-
-    if (isResizingRef.current && selectedImageRef.current) {
-      // 縮放模式
-      const selectedImage = imagesRef.current.find(
-        (img) => img.id === selectedImageRef.current
-      );
-      if (selectedImage) {
-        const deltaX = x - initialMouseRef.current.x;
-        const deltaY = y - initialMouseRef.current.y;
-
-        const resizeType = resizeTypeRef.current;
-
-        if (resizeType.includes('corner')) {
-          // 角落縮放 - 等比例縮放，跟隨滑鼠位置
-          let newWidth, newHeight;
-
-          if (resizeType === 'se-corner') {
-            // 右下角：滑鼠位置就是新的右下角
-            newWidth = Math.max(20, x - initialPositionRef.current.x);
-            newHeight = Math.max(20, y - initialPositionRef.current.y);
-          } else if (resizeType === 'nw-corner') {
-            // 左上角：滑鼠位置就是新的左上角
-            newWidth = Math.max(
-              20,
-              initialPositionRef.current.x + initialSizeRef.current.width - x
-            );
-            newHeight = Math.max(
-              20,
-              initialPositionRef.current.y + initialSizeRef.current.height - y
-            );
-          } else if (resizeType === 'ne-corner') {
-            // 右上角：滑鼠X是右邊界，滑鼠Y是上邊界
-            newWidth = Math.max(20, x - initialPositionRef.current.x);
-            newHeight = Math.max(
-              20,
-              initialPositionRef.current.y + initialSizeRef.current.height - y
-            );
-          } else if (resizeType === 'sw-corner') {
-            // 左下角：滑鼠X是左邊界，滑鼠Y是下邊界
-            newWidth = Math.max(
-              20,
-              initialPositionRef.current.x + initialSizeRef.current.width - x
-            );
-            newHeight = Math.max(20, y - initialPositionRef.current.y);
-          }
-
-          // 計算等比例縮放
-          const aspectRatio =
-            initialSizeRef.current.width / initialSizeRef.current.height;
-          const widthScale = newWidth / initialSizeRef.current.width;
-          const heightScale = newHeight / initialSizeRef.current.height;
-
-          // 選擇較小的縮放比例以保持長寬比並確保不超過滑鼠位置
-          const scale = Math.min(widthScale, heightScale);
-
-          selectedImage.width = Math.max(
-            20,
-            initialSizeRef.current.width * scale
-          );
-          selectedImage.height = Math.max(
-            20,
-            initialSizeRef.current.height * scale
-          );
-
-          // 根據角落調整位置
-          if (resizeType === 'nw-corner') {
-            selectedImage.x =
-              initialPositionRef.current.x +
-              initialSizeRef.current.width -
-              selectedImage.width;
-            selectedImage.y =
-              initialPositionRef.current.y +
-              initialSizeRef.current.height -
-              selectedImage.height;
-          } else if (resizeType === 'ne-corner') {
-            selectedImage.x = initialPositionRef.current.x;
-            selectedImage.y =
-              initialPositionRef.current.y +
-              initialSizeRef.current.height -
-              selectedImage.height;
-          } else if (resizeType === 'sw-corner') {
-            selectedImage.x =
-              initialPositionRef.current.x +
-              initialSizeRef.current.width -
-              selectedImage.width;
-            selectedImage.y = initialPositionRef.current.y;
-          } else if (resizeType === 'se-corner') {
-            selectedImage.x = initialPositionRef.current.x;
-            selectedImage.y = initialPositionRef.current.y;
-          }
-        } else if (resizeType === 'e-edge') {
-          // 右邊緣 - 只調整寬度
-          selectedImage.width = Math.max(
-            20,
-            initialSizeRef.current.width + deltaX
-          );
-        } else if (resizeType === 'w-edge') {
-          // 左邊緣 - 調整寬度和X位置
-          const newWidth = Math.max(20, initialSizeRef.current.width - deltaX);
-          selectedImage.x =
-            initialPositionRef.current.x +
-            (initialSizeRef.current.width - newWidth);
-          selectedImage.width = newWidth;
-        } else if (resizeType === 's-edge') {
-          // 下邊緣 - 只調整高度
-          selectedImage.height = Math.max(
-            20,
-            initialSizeRef.current.height + deltaY
-          );
-        } else if (resizeType === 'n-edge') {
-          // 上邊緣 - 調整高度和Y位置
-          const newHeight = Math.max(
-            20,
-            initialSizeRef.current.height - deltaY
-          );
-          selectedImage.y =
-            initialPositionRef.current.y +
-            (initialSizeRef.current.height - newHeight);
-          selectedImage.height = newHeight;
+        // 使用節流版本的取色函數
+        if (throttleTimer.current) {
+          clearTimeout(throttleTimer.current);
         }
 
-        // 重新繪製畫布
-        redrawCanvas();
+        throttleTimer.current = setTimeout(() => {
+          const currentColor = getColorAtPositionThrottled(canvasX, canvasY);
+          if (currentColor !== previewColor) {
+            setPreviewColor(currentColor);
+          }
+        }, 16); // ~60fps
       }
-    } else if (isDraggingRef.current && selectedImageRef.current) {
-      // 拖拽模式
-      const selectedImage = imagesRef.current.find(
-        (img) => img.id === selectedImageRef.current
-      );
-      if (selectedImage) {
-        selectedImage.x = x - dragOffsetRef.current.x;
-        selectedImage.y = y - dragOffsetRef.current.y;
 
-        // 重新繪製畫布
-        redrawCanvas();
-      }
-    } else {
-      // 檢查鼠標是否在圖片上，改變游標樣式
-      const hoveredImage = getClickedImage(x, y);
+      // 計算滑鼠位置（用於圖片操作）
+      const x =
+        e.clientX -
+        rect.left +
+        (window.scrollX || document.documentElement.scrollLeft);
+      const y =
+        e.clientY -
+        rect.top +
+        (window.scrollY || document.documentElement.scrollTop);
 
-      if (hoveredImage) {
-        // 如果圖片已被選中，檢查是否在縮放控制區域上
-        if (selectedImageRef.current === hoveredImage.id) {
-          const resizeHandle = getResizeHandle(x, y, hoveredImage);
-          if (resizeHandle) {
-            if (resizeHandle.includes('corner')) {
-              canvas.style.cursor = 'nw-resize';
-            } else if (
-              resizeHandle.includes('e-edge') ||
-              resizeHandle.includes('w-edge')
-            ) {
-              canvas.style.cursor = 'ew-resize';
-            } else if (
-              resizeHandle.includes('n-edge') ||
-              resizeHandle.includes('s-edge')
-            ) {
-              canvas.style.cursor = 'ns-resize';
+      if (isResizingRef.current && selectedImageRef.current) {
+        // 縮放模式
+        const selectedImage = imagesRef.current.find(
+          (img) => img.id === selectedImageRef.current
+        );
+        if (selectedImage) {
+          const deltaX = x - initialMouseRef.current.x;
+          const deltaY = y - initialMouseRef.current.y;
+
+          const resizeType = resizeTypeRef.current;
+
+          if (resizeType.includes('corner')) {
+            // 角落縮放 - 等比例縮放，跟隨滑鼠位置
+            let newWidth, newHeight;
+
+            if (resizeType === 'se-corner') {
+              // 右下角：滑鼠位置就是新的右下角
+              newWidth = Math.max(20, x - initialPositionRef.current.x);
+              newHeight = Math.max(20, y - initialPositionRef.current.y);
+            } else if (resizeType === 'nw-corner') {
+              // 左上角：滑鼠位置就是新的左上角
+              newWidth = Math.max(
+                20,
+                initialPositionRef.current.x + initialSizeRef.current.width - x
+              );
+              newHeight = Math.max(
+                20,
+                initialPositionRef.current.y + initialSizeRef.current.height - y
+              );
+            } else if (resizeType === 'ne-corner') {
+              // 右上角：滑鼠X是右邊界，滑鼠Y是上邊界
+              newWidth = Math.max(20, x - initialPositionRef.current.x);
+              newHeight = Math.max(
+                20,
+                initialPositionRef.current.y + initialSizeRef.current.height - y
+              );
+            } else if (resizeType === 'sw-corner') {
+              // 左下角：滑鼠X是左邊界，滑鼠Y是下邊界
+              newWidth = Math.max(
+                20,
+                initialPositionRef.current.x + initialSizeRef.current.width - x
+              );
+              newHeight = Math.max(20, y - initialPositionRef.current.y);
+            }
+
+            // 計算等比例縮放
+            const aspectRatio =
+              initialSizeRef.current.width / initialSizeRef.current.height;
+            const widthScale = newWidth / initialSizeRef.current.width;
+            const heightScale = newHeight / initialSizeRef.current.height;
+
+            // 選擇較小的縮放比例以保持長寬比並確保不超過滑鼠位置
+            const scale = Math.min(widthScale, heightScale);
+
+            selectedImage.width = Math.max(
+              20,
+              initialSizeRef.current.width * scale
+            );
+            selectedImage.height = Math.max(
+              20,
+              initialSizeRef.current.height * scale
+            );
+
+            // 根據角落調整位置
+            if (resizeType === 'nw-corner') {
+              selectedImage.x =
+                initialPositionRef.current.x +
+                initialSizeRef.current.width -
+                selectedImage.width;
+              selectedImage.y =
+                initialPositionRef.current.y +
+                initialSizeRef.current.height -
+                selectedImage.height;
+            } else if (resizeType === 'ne-corner') {
+              selectedImage.x = initialPositionRef.current.x;
+              selectedImage.y =
+                initialPositionRef.current.y +
+                initialSizeRef.current.height -
+                selectedImage.height;
+            } else if (resizeType === 'sw-corner') {
+              selectedImage.x =
+                initialPositionRef.current.x +
+                initialSizeRef.current.width -
+                selectedImage.width;
+              selectedImage.y = initialPositionRef.current.y;
+            } else if (resizeType === 'se-corner') {
+              selectedImage.x = initialPositionRef.current.x;
+              selectedImage.y = initialPositionRef.current.y;
+            }
+          } else if (resizeType === 'e-edge') {
+            // 右邊緣 - 只調整寬度
+            selectedImage.width = Math.max(
+              20,
+              initialSizeRef.current.width + deltaX
+            );
+          } else if (resizeType === 'w-edge') {
+            // 左邊緣 - 調整寬度和X位置
+            const newWidth = Math.max(
+              20,
+              initialSizeRef.current.width - deltaX
+            );
+            selectedImage.x =
+              initialPositionRef.current.x +
+              (initialSizeRef.current.width - newWidth);
+            selectedImage.width = newWidth;
+          } else if (resizeType === 's-edge') {
+            // 下邊緣 - 只調整高度
+            selectedImage.height = Math.max(
+              20,
+              initialSizeRef.current.height + deltaY
+            );
+          } else if (resizeType === 'n-edge') {
+            // 上邊緣 - 調整高度和Y位置
+            const newHeight = Math.max(
+              20,
+              initialSizeRef.current.height - deltaY
+            );
+            selectedImage.y =
+              initialPositionRef.current.y +
+              (initialSizeRef.current.height - newHeight);
+            selectedImage.height = newHeight;
+          }
+
+          // 重新繪製畫布
+          redrawCanvas();
+        }
+      } else if (isDraggingRef.current && selectedImageRef.current) {
+        // 拖拽模式
+        const selectedImage = imagesRef.current.find(
+          (img) => img.id === selectedImageRef.current
+        );
+        if (selectedImage) {
+          selectedImage.x = x - dragOffsetRef.current.x;
+          selectedImage.y = y - dragOffsetRef.current.y;
+
+          // 重新繪製畫布
+          redrawCanvas();
+        }
+      } else {
+        // 檢查鼠標是否在圖片上，改變游標樣式
+        const hoveredImage = getClickedImage(x, y);
+
+        if (hoveredImage) {
+          // 如果圖片已被選中，檢查是否在縮放控制區域上
+          if (selectedImageRef.current === hoveredImage.id) {
+            const resizeHandle = getResizeHandle(x, y, hoveredImage);
+            if (resizeHandle) {
+              if (resizeHandle.includes('corner')) {
+                canvas.style.cursor = 'nw-resize';
+              } else if (
+                resizeHandle.includes('e-edge') ||
+                resizeHandle.includes('w-edge')
+              ) {
+                canvas.style.cursor = 'ew-resize';
+              } else if (
+                resizeHandle.includes('n-edge') ||
+                resizeHandle.includes('s-edge')
+              ) {
+                canvas.style.cursor = 'ns-resize';
+              }
+            } else {
+              canvas.style.cursor = 'grab';
             }
           } else {
+            // 任何圖片都可以拖拽
             canvas.style.cursor = 'grab';
           }
         } else {
-          // 任何圖片都可以拖拽
-          canvas.style.cursor = 'grab';
+          canvas.style.cursor = 'default';
         }
-      } else {
-        canvas.style.cursor = 'default';
       }
-    }
-  };
+    },
+    [
+      canvasRef,
+      isEyedropperActive,
+      getColorAtPositionThrottled,
+      previewColor,
+      selectedImageRef,
+      redrawCanvas,
+    ]
+  );
 
   // 處理鼠標鬆開事件
   const handleMouseUp = () => {
@@ -1206,6 +1348,18 @@ export const Canvas = () => {
     return imagesRef.current.find((img) => img.id === selectedImageId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedImageId, forceUpdate]);
+
+  // 清理函數 - 清理定時器和動畫幀
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (throttleTimer.current) {
+        clearTimeout(throttleTimer.current);
+      }
+    };
+  }, []);
 
   return (
     <>
